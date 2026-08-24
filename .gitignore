@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Dataset — never commit raw/derived data or the official archives
+data/raw/
+data/artifacts/
+data/*.tar.bz2
+data/*.tar.gz
+data/*.zip
+
+# Streamlit / OS
+.streamlit/
+.DS_Store
