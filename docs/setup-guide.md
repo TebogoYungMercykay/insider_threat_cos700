@@ -33,8 +33,8 @@ matplotlib>=3.8
 ## 1. Clone and install
 
 ```bash
-git clone <this-repository-url>
-cd insider_threat
+git clone "https://github.com/TebogoYungMercykay/insider_threat_cos700.git"
+cd insider_threat_cos700
 
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
