@@ -47,16 +47,56 @@ experiment afterwards trains off an 8.6 MB Parquet file that loads in 0.1 s.
 ## The pipeline
 
 ```
-data/r6.2.tar.bz2  ──┐
-                     ├─► script/aggregate.py ─► data/artifacts/userday.parquet ─► train.py ─► app.py
-data/raw/*.csv  ─────┘        (once, 3.3 min)              (8.6 MB)               (8 min)
+data/r6.2.tar.bz2 ──┐
+                    ├─► aggregate.py ─► userday.parquet ─┐
+data/raw/*.csv ─────┘    (3.3 min)         (8.6 MB)      │
+                                                         ├─► prepare.py ─► dataset.parquet ─► train.py ─► app.py
+data/raw/ldap/ ─────────────────────────────────────────┤     (3 s)         (8.7 MB)         (7 min)
+data/raw/answers/ ──────────────────────────────────────┘
 ```
 
-### 1. Aggregate once
+Two stages, because they read different things and cost different amounts:
+
+**`aggregate.py`** is the only step that reads the five big CSVs. It answers
+*"what did each user do each day?"* and takes 3.3 minutes.
+
+**`prepare.py`** is the only step that reads `ldap/` and `answers/`. It attaches
+org context, labels and the train/test split, and takes 3 seconds.
+
+Splitting them means you can re-label, re-split, or carve out a cohort in
+seconds without ever re-reading 93 GB. And once `dataset.parquet` exists,
+**nothing downstream reads `data/raw/` at all** — verified by deleting the
+directory outright and training successfully
+(`test_prepared_dataset_is_self_contained`).
+
+### 1. Build the dataset
 
 ```bash
-python script/aggregate.py                 # full population — 3.3 min
+python script/aggregate.py                 # raw logs -> counts   — 3.3 min
+python script/prepare.py                   # counts -> dataset    — 3 s
 ```
+
+### The dataset artifact
+
+`dataset.parquet` is 8.7 MB and carries 22 columns:
+
+| Group | Columns |
+| --- | --- |
+| Identity | `user`, `date` |
+| Features | the 13 in `FEATURE_COLS` |
+| Org context | `role`, `functional_unit`, `department`, `supervisor`, `is_high_privilege` |
+| Label | `is_malicious` |
+| Split | `split` (`train`/`test`) |
+
+Alongside it, `dataset.meta.json` records the provenance: which aggregated
+table, LDAP snapshot and ground-truth files it was built from (with content
+hashes), the cohort and seed if any, the split cutoff, the class counts, and
+the five insider windows — so evaluation keeps working without
+`answers/insiders.csv`, and a frozen dataset can always be traced back to the
+release it came from.
+
+This is the file to archive alongside a dissertation. It is small enough to
+keep several of (one per experiment), and reproduces a result exactly.
 
 ### 2. Reclaim the disk
 
@@ -81,7 +121,7 @@ deleted the CSVs is never a dead end.
 ### 3. Train
 
 ```bash
-python train.py                            # full population — 8 min
+python train.py                            # full population — 7 min
 ```
 
 ## How the aggregation is made fast
@@ -117,13 +157,17 @@ make training *possible*. It is still useful to make iteration *fast*:
 | | Full population | 400-user cohort |
 | --- | ---: | ---: |
 | User-days | 1,394,010 | 139,590 |
-| `train.py` wall time | 8.0 min | **33 s** |
+| `train.py` wall time | 7.2 min | **20 s** |
 | Malicious user-days | 44 | 44 (all retained) |
 
 ```bash
-python script/aggregate.py --cohort 400 --seed 42
-python train.py --table data/artifacts/userday_cohort400_seed42.parquet
+python script/prepare.py --cohort 400 --seed 42
+python train.py --dataset data/artifacts/dataset_cohort400_seed42.parquet
 ```
+
+Because a cohort is carved at the prepare stage, it costs 3 seconds and never
+re-reads the raw logs. `script/aggregate.py --cohort` also exists, for when you
+want the *counts* table itself restricted.
 
 A cohort is built to be defensible in a write-up:
 
@@ -138,10 +182,10 @@ A cohort is built to be defensible in a write-up:
 3. **It is reproducible.** The selected user list, the seed, and the role
    breakdown are written to `userday_cohort400_seed42.cohort.json`.
 
-If the full table already exists, `--cohort` **slices it** rather than
-re-reading the raw logs — 0.7 s instead of 2.1 min, and the result is verified
-bit-identical to a fresh scan (`test_cohort_slice_equals_direct_aggregation`).
-Pass `--rescan` to force a fresh pass.
+Cohorts are verified to be exact subsets: a cohort dataset equals the cohort's
+rows out of the full one (`test_prepare_is_reproducible_and_cohort_is_a_subset`),
+and at the aggregation stage a sliced cohort is bit-identical to a fresh scan
+(`test_cohort_slice_equals_direct_aggregation`).
 
 ---
 
