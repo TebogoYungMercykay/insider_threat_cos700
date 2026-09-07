@@ -30,6 +30,7 @@ from src.progress import (
 
 ROOT          = os.path.dirname(os.path.abspath(__file__))
 ARTIFACTS_DIR = os.path.join(ROOT, "data", "artifacts")
+USERDAY_TABLE = os.path.join(ARTIFACTS_DIR, "userday.parquet")
 
 PATHS = {
     "daily_df":     os.path.join(ARTIFACTS_DIR, "daily_df.pkl"),
@@ -73,11 +74,22 @@ def _file_sig(path: str) -> str:
     return f"{s.st_size}:{s.st_mtime:.2f}"
 
 
-def _raw_sig(max_users) -> str:
-    raw_dir = os.path.join(ROOT, "data", "raw")
-    files = ["logon.csv", "device.csv", "file.csv", "http.csv", "email.csv"]
-    sig = "|".join(_file_sig(os.path.join(raw_dir, f)) for f in files)
-    return f"{sig}|max_users={max_users}"
+def _raw_sig(max_users, table: str) -> str:
+    """
+    @brief Cache fingerprint for step 1.
+
+    Tracks the aggregated user-day table plus the ground truth, rather than
+    the raw CSVs: the raw logs are read once by script/aggregate.py and are
+    expected to be deleted afterwards, so stat()-ing them would invalidate
+    the cache the moment they go away.
+    """
+    parts = [
+        table,
+        _file_sig(table),
+        _file_sig(os.path.join(ROOT, "data", "raw", "answers", "insiders.csv")),
+        _file_sig(os.path.join(ROOT, "data", "raw", "answers", "malicious_days.csv")),
+    ]
+    return "|".join(parts) + f"|max_users={max_users}"
 
 
 def _step_ok(state: dict, step: str, fingerprint: dict) -> bool:
@@ -96,6 +108,7 @@ def _mark_done(state: dict, step: str, fingerprint: dict, files: list[str]) -> N
 
 
 def train(
+    userday_table:   str | None = None,
     max_users:       int | None = None,
     anomaly_method:  str = "iforest",
     contamination:   float = 0.03,
@@ -123,6 +136,7 @@ def train(
     import joblib
     import numpy as np
 
+    table = os.path.abspath(userday_table or USERDAY_TABLE)
     os.makedirs(ARTIFACTS_DIR, exist_ok=True)
     t_total = time.perf_counter()
     state   = _load_state()
@@ -137,7 +151,7 @@ def train(
         print(f"  {amber(f'Cache invalidated from step {force_from} onward.')}")
 
     # Step 1: Load raw logs and build the per-(user, day) feature table
-    S1_FP    = {"raw_sig": _raw_sig(max_users)}
+    S1_FP    = {"raw_sig": _raw_sig(max_users, table)}
     S1_FILES = [PATHS["daily_df"], PATHS["gt_df"]]
 
     if _step_ok(state, "step1", S1_FP):
@@ -145,19 +159,32 @@ def train(
         df    = joblib.load(PATHS["daily_df"])
         gt_df = joblib.load(PATHS["gt_df"])
     else:
-        _step(1, "Loading Raw Logs & Engineering Behavioural Features")
+        _step(1, "Loading Aggregated User-Day Table & Attaching Context")
         t0 = time.perf_counter()
 
         from src.preprocess import (
-            load_raw_logs, build_daily_features, load_org_structure,
+            load_daily_features, load_org_structure,
             load_ground_truth, attach_context, time_split,
         )
-        logs = load_raw_logs()
-        if max_users:
-            keep = set(logs["logon"]["user"].drop_duplicates().head(max_users))
-            logs = {k: v[v["user"].isin(keep)].reset_index(drop=True) for k, v in logs.items()}
+        if not os.path.exists(table):
+            _err("No aggregated user-day table found.")
+            print()
+            print(f"  The raw r6.2 logs are ~100 GB and are never loaded directly.")
+            print(f"  Reduce them once (single streaming pass, bounded memory):")
+            print()
+            print(f"      {amber('python script/aggregate.py')}")
+            print()
+            print(f"  or build a smaller reproducible subset first:")
+            print()
+            print(f"      {amber('python script/aggregate.py --cohort 400')}")
+            print()
+            raise SystemExit(1)
 
-        daily = build_daily_features(logs)
+        daily = load_daily_features(table)
+        if max_users:
+            keep = set(sorted(daily["user"].unique())[:max_users])
+            daily = daily[daily["user"].isin(keep)].reset_index(drop=True)
+
         org   = load_org_structure()
         gt_df = load_ground_truth()
         df    = attach_context(daily, org, gt_df)
@@ -298,6 +325,7 @@ def train(
         "shap_available":     shap_ok,
         "trained_at":         time.strftime("%Y-%m-%d %H:%M:%S"),
         "max_users_arg":      max_users,
+        "userday_table":      os.path.relpath(table, ROOT),
     }
     with open(PATHS["meta"], "w") as f:
         json.dump(meta, f, indent=2)
@@ -328,6 +356,9 @@ if __name__ == "__main__":
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    parser.add_argument("--table", default=None, metavar="PATH",
+                         help="Aggregated user-day table to train on "
+                              "(default: data/artifacts/userday.parquet).")
     parser.add_argument("--max-users", type=int, default=None, metavar="N",
                          help="Limit to first N users (for quick smoke-tests).")
     parser.add_argument("--anomaly-method", choices=["iforest", "lof", "ocsvm"],
@@ -347,6 +378,7 @@ if __name__ == "__main__":
     force_from = 1 if args.force else args.force_step
 
     train(
+        userday_table=args.table,
         max_users=args.max_users,
         anomaly_method=args.anomaly_method,
         contamination=args.contamination,
