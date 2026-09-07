@@ -449,57 +449,37 @@ def build_daily_features(logs: dict) -> pd.DataFrame:
     return merged[["user", "date"] + FEATURE_COLS]
 
 
-def attach_context(daily_df: pd.DataFrame, org_df: pd.DataFrame, gt_df: pd.DataFrame) -> pd.DataFrame:
+def attach_context(daily_df: pd.DataFrame, org_df: pd.DataFrame,
+                   gt_df: pd.DataFrame) -> pd.DataFrame:
     """
     @brief Join role/org context and ground-truth malicious-day labels onto
            the per-(user, day) feature table.
 
+    Delegates to src.prepare so that this path and the frozen-dataset path
+    (script/prepare.py) can never disagree about what a label or a
+    high-privilege role means.
+
     @param daily_df  Output of build_daily_features().
     @param org_df    Output of load_org_structure().
     @param gt_df     Output of load_ground_truth().
-    @return          daily_df with 'role', 'functional_unit', 'is_high_privilege',
-                     and 'is_malicious' columns appended.
+    @return          daily_df with 'role', 'functional_unit', 'department',
+                     'supervisor', 'is_high_privilege' and 'is_malicious'
+                     columns appended.
     """
-    df = daily_df.merge(org_df, on="user", how="left")
-    df["role"] = df["role"].fillna("Employee")
-    df["functional_unit"] = df["functional_unit"].fillna("Operations")
-    # Match by substring (case-insensitive) rather than an exact role list:
-    # the synthetic generator's roles are "SysAdmin"/"DBAdmin", but the real
-    # CERT LDAP data uses its own role-name strings (e.g. "Sys Admin",
-    # "Database Administrator", "IT Admin"). This keeps the role-aware
-    # false-positive-reduction comparison meaningful against real data too.
-    _HP_PATTERN = r"sys.?admin|db.?admin|database.?admin|it.?admin|administrator"
-    df["is_high_privilege"] = df["role"].str.contains(_HP_PATTERN, case=False, regex=True, na=False)
+    from src.prepare import attach_org_context, attach_labels
 
-    df["is_malicious"] = False
-
+    df = attach_org_context(daily_df, org_df)
     days_df = load_malicious_days()
-    if days_df is not None and len(days_df):
-        with substep(f"labelling rows against {len(days_df):,} exact malicious-day label(s)") as s:
-            labels = set(zip(days_df["user"].astype(str),
-                             pd.to_datetime(days_df["date"]).dt.floor("D")))
-            df["is_malicious"] = [
-                (u, d) in labels
-                for u, d in zip(df["user"].astype(str), df["date"].dt.floor("D"))
-            ]
-            s.set_detail(f"{int(df['is_malicious'].sum()):,} malicious rows labelled")
-    else:
+    if days_df is None or not len(days_df):
         warn("No malicious_days.csv — falling back to window filling, which "
              "over-labels benign days inside an insider's active period.")
-        with substep(f"labelling malicious (user, day) rows against "
-                     f"{len(gt_df):,} ground-truth window(s)") as s:
-            prog = Progress("ground-truth windows", len(gt_df), unit="items")
-            for _, row in gt_df.iterrows():
-                mask = (
-                    (df["user"] == row["user"])
-                    & (df["date"] >= row["start_date"])
-                    & (df["date"] <= row["end_date"])
-                )
-                df.loc[mask, "is_malicious"] = True
-                prog.update(1)
-            prog.done()
-            s.set_detail(f"{int(df['is_malicious'].sum()):,} malicious rows labelled")
 
+    n_labels = 0 if days_df is None else len(days_df)
+    with substep(f"labelling rows against "
+                 f"{n_labels or len(gt_df):,} ground-truth label(s)") as s:
+        df, source = attach_labels(df, gt_df, days_df)
+        s.set_detail(f"{int(df['is_malicious'].sum()):,} malicious rows "
+                     f"labelled from {source}")
     return df
 
 
@@ -516,9 +496,10 @@ def time_split(df: pd.DataFrame, train_frac: float = 0.7) -> pd.DataFrame:
     @param train_frac   Fraction of the date range assigned to "train".
     @return             df with an added 'split' column.
     """
+    from src.prepare import time_split_cutoff
+
     df = df.copy()
-    dates = df["date"].sort_values().unique()
-    cutoff = dates[int(len(dates) * train_frac)]
+    cutoff = time_split_cutoff(df["date"], train_frac)
     df["split"] = np.where(df["date"] < cutoff, "train", "test")
     return df
 
