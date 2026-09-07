@@ -66,7 +66,13 @@ Extracted, the real r6.2 logs are ~93 GB — `http.csv` alone is 84 GB. They are
 
 ```bash
 python script/aggregate.py               # 93.2 GB -> 8.6 MB, ~3.3 min on 12 cores
+python script/prepare.py                 # -> dataset.parquet (8.7 MB), ~3 s
 ```
+
+`aggregate.py` reads the five big CSVs; `prepare.py` reads `ldap/` and `answers/`
+and attaches org context, labels and the train/test split. The result,
+`data/artifacts/dataset.parquet`, is self-contained — after this, **nothing in the
+training or evaluation path reads `data/raw/` again.**
 
 Once it completes, the extracted CSVs are redundant and can be deleted to reclaim ~93 GB of disk:
 
@@ -83,11 +89,11 @@ python script/aggregate.py --from-archive --force
 **For fast iteration**, build a reproducible subset instead. All five insiders are always kept and the benign class is downsampled by role-stratified sampling, so every one of the 46 roles stays represented:
 
 ```bash
-python script/aggregate.py --cohort 400 --seed 42
-python train.py --table data/artifacts/userday_cohort400_seed42.parquet
+python script/prepare.py --cohort 400 --seed 42
+python train.py --dataset data/artifacts/dataset_cohort400_seed42.parquet
 ```
 
-That cuts a training run from 8 minutes to 33 seconds while retaining all 44 malicious user-days. If the full table already exists the cohort is *sliced* out of it in under a second rather than re-reading the raw logs.
+That cuts a training run from 7 minutes to 20 seconds while retaining all 44 malicious user-days, and takes 3 seconds to build because it never re-reads the raw logs.
 
 The synthetic dataset is small enough that this step is optional — `train.py` falls back to in-memory loading when no aggregated table is present.
 
@@ -99,12 +105,12 @@ See **[`data-pipeline.md`](data-pipeline.md)** for how this works and what it fi
 python train.py
 ```
 
-This runs a five-step, independently cached pipeline: loading the aggregated table and attaching org/ground-truth context → population Random Forest → per-user framework (Profile Builder + Role-Aware Normaliser + Anomaly Scorer) → SHAP explainer → metadata manifest. Re-running only re-executes steps whose inputs changed.
+This runs a five-step, independently cached pipeline: loading the prepared dataset → population Random Forest → per-user framework (Profile Builder + Role-Aware Normaliser + Anomaly Scorer) → SHAP explainer → metadata manifest. Re-running only re-executes steps whose inputs changed.
 
 Useful flags:
 
 ```bash
-python train.py --table data/artifacts/userday_cohort400_seed42.parquet   # train on a cohort
+python train.py --dataset data/artifacts/dataset_cohort400_seed42.parquet  # train on a cohort
 python train.py --max-users 100          # quick smoke-test on a user subset
 python train.py --anomaly-method lof     # iforest | lof | ocsvm
 python train.py --no-shap                # skip SHAP (faster)
@@ -125,7 +131,7 @@ Opens a local Streamlit server (default `http://localhost:8501`) with five pages
 | Symptom                                                         | Likely cause / fix                                                                                                                                                                                                      |
 | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `FileNotFoundError: Missing raw log files`                      | `data/raw/` is empty — run `python script/dataset.py` first (step 2 above).                                                                                                                                             |
-| `No aggregated user-day table at ...`                           | Run `python script/aggregate.py` once (step 3 above). `train.py` reads the aggregated table, not the raw logs.                                                                                                          |
+| `No prepared dataset at ...`                                    | Run `python script/aggregate.py` then `python script/prepare.py` (step 3 above). `train.py` reads the prepared dataset, not the raw logs.                                                                               |
 | `MemoryError: Refusing to load these raw logs into memory`      | Something asked for the in-memory loader on the real 93 GB dataset. Use `python script/aggregate.py` instead — see [`data-pipeline.md`](data-pipeline.md).                                                              |
 | `python script/dataset.py` falls back to synthetic unexpectedly | `r6.2.tar.bz2` / `answers.tar.bz2` aren't at the expected path — pass `--r6-archive` / `--answers-archive` explicitly, or check they're directly under `data/`.                                                         |
 | `CHECKSUM MISMATCH` on ingestion                                | The archive is corrupt/incomplete — re-download it, or pass `--no-verify-checksums` to proceed anyway if you're confident the file is fine.                                                                             |

@@ -31,6 +31,7 @@ from src.progress import (
 ROOT          = os.path.dirname(os.path.abspath(__file__))
 ARTIFACTS_DIR = os.path.join(ROOT, "data", "artifacts")
 USERDAY_TABLE = os.path.join(ARTIFACTS_DIR, "userday.parquet")
+DATASET_PATH  = os.path.join(ARTIFACTS_DIR, "dataset.parquet")
 
 PATHS = {
     "daily_df":     os.path.join(ARTIFACTS_DIR, "daily_df.pkl"),
@@ -74,20 +75,20 @@ def _file_sig(path: str) -> str:
     return f"{s.st_size}:{s.st_mtime:.2f}"
 
 
-def _raw_sig(max_users, table: str) -> str:
+def _dataset_sig(max_users, dataset_path: str) -> str:
     """
     @brief Cache fingerprint for step 1.
 
-    Tracks the aggregated user-day table plus the ground truth, rather than
-    the raw CSVs: the raw logs are read once by script/aggregate.py and are
-    expected to be deleted afterwards, so stat()-ing them would invalidate
-    the cache the moment they go away.
+    Tracks only the prepared dataset and its manifest. Everything that shaped
+    the dataset -- raw logs, LDAP, ground truth -- is already baked into it,
+    and data/raw/ is expected to be deleted once it exists, so stat()-ing
+    those inputs would invalidate the cache the moment they go away.
     """
+    from src.prepare import manifest_path_for
     parts = [
-        table,
-        _file_sig(table),
-        _file_sig(os.path.join(ROOT, "data", "raw", "answers", "insiders.csv")),
-        _file_sig(os.path.join(ROOT, "data", "raw", "answers", "malicious_days.csv")),
+        dataset_path,
+        _file_sig(dataset_path),
+        _file_sig(manifest_path_for(dataset_path)),
     ]
     return "|".join(parts) + f"|max_users={max_users}"
 
@@ -108,7 +109,7 @@ def _mark_done(state: dict, step: str, fingerprint: dict, files: list[str]) -> N
 
 
 def train(
-    userday_table:   str | None = None,
+    dataset:         str | None = None,
     max_users:       int | None = None,
     anomaly_method:  str = "iforest",
     contamination:   float = 0.03,
@@ -136,7 +137,7 @@ def train(
     import joblib
     import numpy as np
 
-    table = os.path.abspath(userday_table or USERDAY_TABLE)
+    dataset_path = os.path.abspath(dataset or DATASET_PATH)
     os.makedirs(ARTIFACTS_DIR, exist_ok=True)
     t_total = time.perf_counter()
     state   = _load_state()
@@ -150,53 +151,55 @@ def train(
         _save_state(state)
         print(f"  {amber(f'Cache invalidated from step {force_from} onward.')}")
 
-    # Step 1: Load raw logs and build the per-(user, day) feature table
-    S1_FP    = {"raw_sig": _raw_sig(max_users, table)}
+    # Step 1: Load the prepared dataset. It already carries the engineered
+    # features, org context, labels and the train/test split, so this step
+    # reads one file and touches nothing under data/raw/.
+    S1_FP    = {"dataset_sig": _dataset_sig(max_users, dataset_path)}
     S1_FILES = [PATHS["daily_df"], PATHS["gt_df"]]
 
     if _step_ok(state, "step1", S1_FP):
-        _skip(1, "Loading & Engineering Features")
+        _skip(1, "Loading Prepared Dataset")
         df    = joblib.load(PATHS["daily_df"])
         gt_df = joblib.load(PATHS["gt_df"])
     else:
-        _step(1, "Loading Aggregated User-Day Table & Attaching Context")
+        _step(1, "Loading Prepared Dataset")
         t0 = time.perf_counter()
 
-        from src.preprocess import (
-            load_daily_features, load_org_structure,
-            load_ground_truth, attach_context, time_split,
-        )
-        if not os.path.exists(table):
-            _err("No aggregated user-day table found.")
+        from src.prepare import load_prepared, ground_truth_from_manifest
+
+        if not os.path.exists(dataset_path):
+            _err(f"No prepared dataset at {os.path.relpath(dataset_path, ROOT)}.")
             print()
-            print(f"  The raw r6.2 logs are ~100 GB and are never loaded directly.")
-            print(f"  Reduce them once (single streaming pass, bounded memory):")
+            print("  The raw r6.2 logs are ~93 GB and are never loaded directly.")
+            print("  Build the dataset once, then train off it from then on:")
             print()
-            print(f"      {amber('python script/aggregate.py')}")
+            print(f"      {amber('python script/aggregate.py')}    "
+                  f"{dim('# raw logs -> user-day counts (3.3 min)')}")
+            print(f"      {amber('python script/prepare.py')}      "
+                  f"{dim('# counts -> labelled dataset (3 s)')}")
             print()
-            print(f"  or build a smaller reproducible subset first:")
+            print("  Or build a smaller reproducible subset:")
             print()
-            print(f"      {amber('python script/aggregate.py --cohort 400')}")
+            print(f"      {amber('python script/prepare.py --cohort 400')}")
             print()
             raise SystemExit(1)
 
-        daily = load_daily_features(table)
+        df, manifest = load_prepared(dataset_path)
+        gt_df = ground_truth_from_manifest(manifest)
+
         if max_users:
-            keep = set(sorted(daily["user"].unique())[:max_users])
-            daily = daily[daily["user"].isin(keep)].reset_index(drop=True)
+            keep = set(sorted(df["user"].unique())[:max_users])
+            df = df[df["user"].isin(keep)].reset_index(drop=True)
 
-        org   = load_org_structure()
-        gt_df = load_ground_truth()
-        df    = attach_context(daily, org, gt_df)
-        df    = time_split(df)
-
+        _kv("Dataset",            os.path.relpath(dataset_path, ROOT))
         _kv("Users",              df["user"].nunique())
         _kv("User-day rows",      f"{len(df):,}")
         _kv("Train / Test rows",  f"{(df['split']=='train').sum():,} / {(df['split']=='test').sum():,}")
+        _kv("Split cutoff",       manifest.get("split_cutoff", "n/a"))
         _kv("Malicious rows",     int(df["is_malicious"].sum()))
         _kv("High-privilege rows", int(df["is_high_privilege"].sum()))
         _kv("Elapsed", _elapsed(t0))
-        _ok("Feature table built")
+        _ok("Dataset loaded")
 
         joblib.dump(df, PATHS["daily_df"])
         joblib.dump(gt_df, PATHS["gt_df"])
@@ -325,7 +328,7 @@ def train(
         "shap_available":     shap_ok,
         "trained_at":         time.strftime("%Y-%m-%d %H:%M:%S"),
         "max_users_arg":      max_users,
-        "userday_table":      os.path.relpath(table, ROOT),
+        "dataset":            os.path.relpath(dataset_path, ROOT),
     }
     with open(PATHS["meta"], "w") as f:
         json.dump(meta, f, indent=2)
@@ -356,9 +359,9 @@ if __name__ == "__main__":
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--table", default=None, metavar="PATH",
-                         help="Aggregated user-day table to train on "
-                              "(default: data/artifacts/userday.parquet).")
+    parser.add_argument("--dataset", default=None, metavar="PATH",
+                         help="Prepared dataset to train on "
+                              "(default: data/artifacts/dataset.parquet).")
     parser.add_argument("--max-users", type=int, default=None, metavar="N",
                          help="Limit to first N users (for quick smoke-tests).")
     parser.add_argument("--anomaly-method", choices=["iforest", "lof", "ocsvm"],
@@ -378,7 +381,7 @@ if __name__ == "__main__":
     force_from = 1 if args.force else args.force_step
 
     train(
-        userday_table=args.table,
+        dataset=args.dataset,
         max_users=args.max_users,
         anomaly_method=args.anomaly_method,
         contamination=args.contamination,
