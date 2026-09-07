@@ -16,8 +16,8 @@ Put the downloaded files directly in this `data/` directory, unmodified:
 
 ```
 data/
-├── r6.2.tar.bz2
-├── answers.tar.bz2
+├── r6.2.tar.bz2                 # ~23 GiB  (23,811,144,737 bytes)
+├── answers.tar.bz2              # ~1.2 MiB (1,254,678 bytes)
 ├── CHECKSUMS-sha256.txt         # optional, but recommended
 ├── CHECKSUMS-sha1.txt           # optional
 └── SEI_Insider_README.txt       # optional, background reading only
@@ -48,11 +48,11 @@ python script/dataset.py --force                 # redo even if data/raw/ is pop
 
 ```
 data/raw/
-├── logon.csv
-├── device.csv
-├── file.csv
-├── http.csv
-├── email.csv
+├── logon.csv           # ~230 MiB  (241,640,758 bytes)
+├── device.csv          # ~133 MiB  (139,541,381 bytes)
+├── file.csv            # ~1.24 GiB (1,331,296,612 bytes)
+├── http.csv            # ~84.0 GiB (90,233,360,621 bytes)
+├── email.csv           # ~7.53 GiB (8,084,765,283 bytes)
 ├── ldap/
 │   ├── 2009-12.csv
 │   ├── 2010-01.csv
@@ -60,6 +60,27 @@ data/raw/
 └── answers/
     └── insiders.csv      # derived: user, scenario, threat_type, start_date, end_date, n_events
 ```
+
+### Reference: disk footprint
+
+Sizes below are from a full r6.2 ingestion and are given so you can sanity-check your own
+download/extraction and plan disk space — they are illustrative, not fixed (exact byte counts
+can vary slightly by download mirror or release patch).
+
+| Location | Size |
+|---|---|
+| `data/` (archives + checksums, pre-extraction) | ~22.2 GiB |
+| `data/raw/` (extracted logs, excl. `ldap/`, `answers/`) | ~93.1 GiB |
+| `data/raw/http.csv` | ~84.0 GiB (dominates total size) |
+| `data/raw/email.csv` | ~7.53 GiB |
+
+**Plan for ~120 GiB free** to hold the archives (`data/`) and their extraction (`data/raw/`)
+simultaneously during ingestion; you can delete the two `.tar.bz2` archives afterwards to
+reclaim the ~22 GiB they occupy, since `script/dataset.py` does not need them again unless
+run with `--force`.
+
+`data/artifacts/` is a separate, local-only directory (excluded from version control) used
+for pipeline-generated output from `train.py` / `app.py`, not part of the raw dataset above.
 
 ## After ingestion — running the pipeline
 
