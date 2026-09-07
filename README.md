@@ -35,7 +35,7 @@ python script/dataset.py
 
 `script/dataset.py` auto-detects the official archives, verifies them against the published checksums, extracts them, and converts the official per-event answer key into ground truth. Note that `answers.tar.bz2` ships the answer key for *every* CERT release at once (r2 through r6.2), so the ingest filters to r6.2 — which has exactly **5 insiders and 44 malicious user-days**. It emits both per-user malicious windows and the exact event-derived day labels that training uses.
 
-Because the extracted r6.2 logs are ~93 GB, they are reduced in one streaming pass to a compact per-`(user, day)` table before training — see **[`docs/data-pipeline.md`](docs/data-pipeline.md)**. If the archives aren't present, it transparently falls back to generating a schema-identical **synthetic** dataset instead, so the pipeline can still be built, run, and demonstrated end-to-end. The synthetic generator injects two attacker archetypes described in the proposal:
+Because the extracted r6.2 logs are ~93 GB, they are reduced once to a compact per-`(user, day)` table and then frozen into a self-contained `dataset.parquet` (8.7 MB) carrying features, org context, labels and the train/test split. Training reads only that file — see **[`docs/data-pipeline.md`](docs/data-pipeline.md)**. If the archives aren't present, it transparently falls back to generating a schema-identical **synthetic** dataset instead, so the pipeline can still be built, run, and demonstrated end-to-end. The synthetic generator injects two attacker archetypes described in the proposal:
 
 - **`burst`** — large, short-window activity spikes (catchable by _any_ baseline)
 - **`low_slow`** — small, sustained per-user drift (the case a population baseline is expected to miss, and the framework's primary target)
@@ -62,15 +62,17 @@ pip install -r requirements.txt
 python script/dataset.py
 python script/dataset.py --n-users 800 --n-days 270   # larger synthetic run
 
-# 1. Aggregate — one streaming pass over the raw logs (real data only)
-#    93.2 GB / 135 M events -> 8.6 MB / 1.4 M user-days, in ~3.3 min.
-#    Afterwards the extracted CSVs can be deleted to reclaim ~93 GB.
+# 1. Build the dataset — two one-time steps over the ~93 GB of raw logs.
+#    aggregate: 135 M events -> 1.4 M user-day counts   (~3.3 min)
+#    prepare:   + org context, labels, train/test split (~3 s)
+#    Afterwards data/raw/ is no longer read at all and can be deleted.
 python script/aggregate.py
-python script/aggregate.py --cohort 400  # reproducible subset; trains in 33 s
+python script/prepare.py
+python script/prepare.py --cohort 400    # reproducible subset; trains in 20 s
 
 # 2. Train — population RF and per-user framework
 python train.py                          # incremental: skips cached steps
-python train.py --table data/artifacts/userday_cohort400_seed42.parquet
+python train.py --dataset data/artifacts/dataset_cohort400_seed42.parquet
 python train.py --max-users 100          # quick smoke-test
 python train.py --anomaly-method lof     # iforest | lof | ocsvm
 python train.py --no-shap                # skip SHAP (faster)
@@ -108,7 +110,8 @@ insider_threat/
 │   │   ├── logon.csv  device.csv  file.csv  http.csv  email.csv
 │   │   ├── ldap/               # monthly org-structure snapshots
 │   │   └── answers/            # insiders.csv (windows) + malicious_days.csv (exact labels)
-│   └── artifacts/              # userday.parquet (aggregated table) + cached models — generated
+│   └── artifacts/              # userday.parquet (counts), dataset.parquet (trainable
+│                               # dataset + manifest), cached models — generated
 ├── docs/
 │   ├── setup-guide.md          # System requirements + setup walkthrough
 │   ├── data-pipeline.md        # Streaming aggregation, cohorts, and the bugs it fixed
@@ -116,12 +119,14 @@ insider_threat/
 │   └── *.pdf                   # Research proposal, Gen-AI declaration
 ├── script/
 │   ├── dataset.py              # real-data ingestion path + synthetic generator
-│   └── aggregate.py            # one-time streaming reduction of the raw logs
+│   ├── aggregate.py            # one-time streaming reduction of the raw logs
+│   └── prepare.py              # freeze counts + context + labels into one dataset
 └── src/
     ├── colors.py
     ├── schema.py               # feature set, raw-log layout, fast timestamp/URL parsing
     ├── aggregate.py            # parallel byte-range streaming aggregator (93 GB -> 8.6 MB)
     ├── cohort.py               # reproducible role-stratified subset selection
+    ├── prepare.py              # context/label/split attachment + dataset manifest
     ├── preprocess.py           # aggregated-table loading, context, labelling, time split
     ├── baseline.py             # Profile Builder, Role-Aware Normaliser, Anomaly
     │                           # Scorer (PerUserBaselineEngine); PopulationBaseline (RF)
