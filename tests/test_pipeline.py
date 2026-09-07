@@ -377,3 +377,125 @@ def test_streaming_removable_flag_accepts_both_dialects():
                "File Copy", value, "False", "content"]
         A._consume("file", [row], None, counts, domains)
         assert list(counts.values())[0][S.SLOT["n_file_to_removable"]] == expected, value
+
+
+# ---------------------------------------------------------------------------
+# The prepared dataset must stand alone
+# ---------------------------------------------------------------------------
+
+DATASET = os.path.join(ARTIFACTS, "dataset.parquet")
+
+requires_dataset = pytest.mark.skipif(
+    not os.path.exists(DATASET), reason="prepared dataset not built")
+
+
+@requires_dataset
+def test_prepared_dataset_is_self_contained():
+    """
+    The whole point of the prepare step: the dataset carries features, org
+    context, labels and the split, so training reads nothing from data/raw/.
+    """
+    from src.prepare import load_prepared, DATASET_COLUMNS
+
+    df, manifest = load_prepared(DATASET)
+    assert list(df.columns) == DATASET_COLUMNS
+    assert set(df["split"]) == {"train", "test"}
+    assert df["role"].notna().all()
+    assert df["is_malicious"].dtype == bool
+    assert manifest["n_rows"] == len(df)
+    assert manifest["feature_cols"] == list(S.FEATURE_COLS)
+
+
+@requires_dataset
+def test_manifest_carries_ground_truth_for_evaluation():
+    """gt_df must survive without data/raw/answers/insiders.csv."""
+    from src.prepare import load_prepared, ground_truth_from_manifest
+
+    _, manifest = load_prepared(DATASET)
+    gt = ground_truth_from_manifest(manifest)
+    assert len(gt) == 5
+    assert set(gt["user"]) == {"ACM2278", "CMP2946", "PLJ1771", "CDE1846", "MBG3183"}
+    assert pd.api.types.is_datetime64_any_dtype(gt["start_date"])
+
+
+@requires_dataset
+def test_split_is_time_based_with_no_leakage():
+    """Every training day must precede every test day."""
+    df, manifest = _load_dataset()
+    cutoff = pd.Timestamp(manifest["split_cutoff"])
+    assert df.loc[df["split"] == "train", "date"].max() < cutoff
+    assert df.loc[df["split"] == "test", "date"].min() >= cutoff
+
+
+def _load_dataset():
+    from src.prepare import load_prepared
+    return load_prepared(DATASET)
+
+
+@requires_dataset
+def test_labels_match_the_answer_key():
+    df, _ = _load_dataset()
+    assert int(df["is_malicious"].sum()) == 44
+    assert df.loc[df["is_malicious"], "user"].nunique() == 5
+
+
+@requires_table
+@requires_raw
+def test_prepare_is_reproducible_and_cohort_is_a_subset():
+    """
+    Preparing twice gives the same dataset, and a cohort dataset is exactly
+    the cohort's rows out of the full one.
+    """
+    from src.preprocess import load_org_structure, load_ground_truth, load_malicious_days
+    from src.prepare import build_prepared
+    from src.cohort import build_cohort
+
+    counts = pd.read_parquet(os.path.join(ARTIFACTS, "userday.parquet"))
+    org, gt, days = load_org_structure(), load_ground_truth(), load_malicious_days()
+
+    full_a, stats_a = build_prepared(counts, org, gt, days, train_frac=0.7)
+    full_b, stats_b = build_prepared(counts, org, gt, days, train_frac=0.7)
+    pd.testing.assert_frame_equal(full_a, full_b)
+    assert stats_a == stats_b
+
+    users = build_cohort(org, sorted(gt["user"].unique()), n_users=30, seed=5)["users"]
+    sub, _ = build_prepared(counts[counts["user"].isin(set(users))].reset_index(drop=True),
+                            org, gt, days, train_frac=0.7)
+    expected = full_a[full_a["user"].isin(set(users))].reset_index(drop=True)
+
+    # The split cutoff is derived from the dates present, which a subset
+    # preserves here, so the rows must match the full run exactly.
+    pd.testing.assert_frame_equal(sub, expected)
+
+
+def test_time_split_cutoff_respects_the_fraction():
+    from src.prepare import time_split_cutoff
+
+    dates = pd.Series(pd.date_range("2010-01-01", periods=100, freq="D"))
+    assert time_split_cutoff(dates, 0.7) == pd.Timestamp("2010-03-12")   # day 71
+    assert time_split_cutoff(dates, 1.0) == pd.Timestamp("2010-04-10")   # last day
+
+
+@requires_table
+@requires_raw
+def test_preprocess_and_prepare_agree():
+    """
+    preprocess.attach_context/time_split and prepare.build_prepared must
+    produce identical context, labels and split -- they are two entry points
+    onto one implementation, and silent drift between them is what made
+    features constant in the first place.
+    """
+    from src.preprocess import (load_org_structure, load_ground_truth,
+                                load_malicious_days, attach_context, time_split)
+    from src.prepare import build_prepared, DATASET_COLUMNS
+
+    counts = pd.read_parquet(os.path.join(ARTIFACTS, "userday.parquet")).head(50_000)
+    org, gt, days = load_org_structure(), load_ground_truth(), load_malicious_days()
+
+    via_preprocess = time_split(attach_context(counts, org, gt), train_frac=0.7)
+    via_preprocess = via_preprocess[DATASET_COLUMNS].sort_values(
+        ["user", "date"], ignore_index=True)
+
+    via_prepare, _ = build_prepared(counts, org, gt, days, train_frac=0.7)
+
+    pd.testing.assert_frame_equal(via_preprocess, via_prepare)
