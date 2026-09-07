@@ -72,6 +72,10 @@ from src.progress import (
 REQUIRED_REAL_FILES = ["logon.csv", "device.csv", "file.csv", "http.csv", "email.csv"]
 CHECKSUM_FILES = ["CHECKSUMS-sha256.txt", "CHECKSUMS-sha1.txt"]
 _BSD_CHECKSUM_RE = re.compile(r"^\w+\(([^)]+)\)\s*=\s*([0-9a-fA-F]+)$")
+## CERT release this pipeline models. The answers archive ships ground
+#  truth for every release at once, so this gates which of it applies.
+RELEASE = "r6.2"
+
 _VALID_LOG_TYPES = {"logon", "device", "file", "http", "email"}
 
 _CORP_DOMAIN = "corp.example.com"
@@ -300,30 +304,89 @@ class _CountingStream(io.RawIOBase):
         return n
 
 
-def build_ground_truth_from_answers(archive_path: str) -> pd.DataFrame:
+def _load_designated_insiders(tar: tarfile.TarFile) -> dict:
     """
-    @brief Convert the official per-event answer key into the simplified
-           per-user malicious-window ground truth this pipeline expects.
+    @brief Read the archive's master insider list and return only the users
+           designated as insiders for THIS release.
 
-    Streams every answers/*.csv member straight out of the archive (nothing
-    is written to disk) via a byte-counting wrapper so parsing progress —
-    normally the least visible step, since it's CPU-bound row parsing
-    rather than a simple byte copy — is reported the same way extraction is.
+    The answers archive ships ground truth for every CERT release ever
+    published (r2 through r6.2) side by side. Its master insiders.csv has a
+    'dataset' column naming the release each row belongs to; r6.2 has
+    exactly five insiders, while r4.2 and r5.2 together account for ~170.
+    Ingesting the archive indiscriminately therefore labels ~230 users who
+    are perfectly benign *in r6.2* as malicious, which is what makes the
+    resulting model untrainable.
+
+    @param tar  Open handle on answers.tar.bz2.
+    @return     Dict {user: scenario_number} for this release only.
     """
+    member = next((m for m in tar.getmembers()
+                   if m.isfile() and os.path.basename(m.name) == "insiders.csv"), None)
+    if member is None:
+        raise FileNotFoundError(
+            "answers archive has no master insiders.csv — cannot determine "
+            f"which users are the designated insiders for {RELEASE}."
+        )
+    handle = tar.extractfile(member)
+    text = io.TextIOWrapper(handle, encoding="utf-8", errors="replace", newline="")
+    wanted = RELEASE.lstrip("r")                      # "r6.2" -> "6.2"
+    designated = {
+        row["user"].strip(): row["scenario"].strip()
+        for row in csv.DictReader(text)
+        if row.get("dataset", "").strip() == wanted
+    }
+    if not designated:
+        raise ValueError(f"No insiders listed for release {RELEASE} in the answers archive.")
+    return designated
+
+
+def build_ground_truth_from_answers(archive_path: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    @brief Convert the official per-event answer key into this pipeline's
+           ground truth, restricted to the release actually being modelled.
+
+    Two filters are applied, and both matter:
+
+      1. *Release.* Only answer files belonging to RELEASE are read (see
+         _load_designated_insiders).
+
+      2. *Attribution.* Within a scenario's answer file, only events
+         attributed to that scenario's designated insider are treated as
+         malicious. Scenario 3 is the reason: the insider sends an alarming
+         mass email, and the answer key also records the 24 recipients'
+         'View' events. Those recipients are victims, not insiders —
+         labelling them malicious would inject 24 spurious positive users.
+
+    Both a per-window summary and the exact malicious day set are returned.
+    The day set is the label actually used for training: deriving labels by
+    filling in each insider's [min, max] event window instead would mark 131
+    user-days malicious when only 44 of them carry any malicious activity,
+    because scenarios 2 and 4 unfold in bursts over one to two months.
+
+    @param archive_path  Path to answers.tar.bz2.
+    @return              (windows_df, malicious_days_df).
+    """
+    scenario_re = re.compile(rf"^{re.escape(RELEASE)}-(\d+)")
     rows = []
-    n_files = 0
+
     with tarfile.open(archive_path, "r:bz2") as tar:
+        designated = _load_designated_insiders(tar)
+        kv(f"Designated {RELEASE} insiders", ", ".join(sorted(designated)))
+
         members = sorted(
-            (m for m in tar if m.isfile() and m.name.lower().endswith(".csv")),
+            (m for m in tar.getmembers()
+             if m.isfile()
+             and m.name.lower().endswith(".csv")
+             and scenario_re.match(os.path.basename(m.name))),
             key=lambda m: m.name,
         )
         if not members:
-            raise FileNotFoundError(f"No answer-key CSV files found inside {archive_path}")
+            raise FileNotFoundError(
+                f"No {RELEASE} answer-key files found inside {archive_path}"
+            )
 
-        for i, member in enumerate(members, start=1):
-            n_files += 1
-            scenario = _scenario_id_from_filename(member.name, i)
-            _log(f"  {blue(chr(0x2192))} reading {os.path.basename(member.name)} ({human_size(member.size)}) ...")
+        for member in members:
+            scenario = scenario_re.match(os.path.basename(member.name)).group(1)
             src = tar.extractfile(member)
             if src is None:
                 continue
@@ -332,34 +395,53 @@ def build_ground_truth_from_answers(archive_path: str) -> pd.DataFrame:
             counted = io.BufferedReader(_CountingStream(src, prog.update))
             text = io.TextIOWrapper(counted, encoding="utf-8", errors="replace", newline="")
 
-            n_parsed, n_skipped = 0, 0
+            n_kept, n_collateral, n_skipped = 0, 0, 0
             for rec in csv.reader(text):
                 if len(rec) < 4:
                     n_skipped += 1
                     continue
-                log_type, event_id, date_str, user = rec[0], rec[1], rec[2], rec[3]
+                log_type, _event_id, date_str, user = rec[0], rec[1], rec[2], rec[3]
                 if log_type not in _VALID_LOG_TYPES:
                     n_skipped += 1
                     continue
+                if designated.get(user) != scenario:
+                    n_collateral += 1          # e.g. a mass-email recipient
+                    continue
                 try:
-                    ts = pd.to_datetime(date_str)
+                    ts = pd.to_datetime(date_str, format="%m/%d/%Y %H:%M:%S")
                 except (ValueError, TypeError):
                     n_skipped += 1
                     continue
                 rows.append({"scenario": scenario, "user": user, "date": ts})
-                n_parsed += 1
+                n_kept += 1
             prog.done()
-            ok(f"{os.path.basename(member.name):<20s} scenario {scenario:<4s} "
-               f"{n_parsed:>7,} malicious events parsed  ({n_skipped} skipped)")
+            ok(f"{os.path.basename(member.name):<16s} scenario {scenario:<3s} "
+               f"{n_kept:>5,} insider events"
+               + (f"  ({n_collateral} collateral dropped)" if n_collateral else ""))
 
     if not rows:
-        raise ValueError(f"Parsed 0 malicious events from {n_files} answer-key file(s).")
+        raise ValueError(f"Parsed 0 malicious events for release {RELEASE}.")
 
     events = pd.DataFrame(rows)
-    grouped = events.groupby(["scenario", "user"])["date"].agg(["min", "max", "count"]).reset_index()
-    grouped = grouped.rename(columns={"min": "start_date", "max": "end_date", "count": "n_events"})
-    grouped["threat_type"] = "scenario_" + grouped["scenario"].astype(str)
-    return grouped[["user", "scenario", "threat_type", "start_date", "end_date", "n_events"]]
+    events["day"] = events["date"].dt.floor("D")
+
+    windows = (
+        events.groupby(["scenario", "user"])
+        .agg(start_date=("date", "min"), end_date=("date", "max"),
+             n_events=("date", "size"), n_malicious_days=("day", "nunique"))
+        .reset_index()
+    )
+    windows["threat_type"] = "scenario_" + windows["scenario"].astype(str)
+    windows = windows[["user", "scenario", "threat_type", "start_date", "end_date",
+                       "n_events", "n_malicious_days"]]
+
+    days = (
+        events[["user", "scenario", "day"]]
+        .drop_duplicates()
+        .rename(columns={"day": "date"})
+        .sort_values(["user", "date"], ignore_index=True)
+    )
+    return windows, days
 
 
 def ingest_answers_archive(archive_path: str, force: bool = False) -> None:
@@ -367,20 +449,25 @@ def ingest_answers_archive(archive_path: str, force: bool = False) -> None:
         raise FileNotFoundError(f"answers archive not found: {archive_path}")
 
     os.makedirs(ANS_DIR, exist_ok=True)
-    out_path = os.path.join(ANS_DIR, "insiders.csv")
+    out_path  = os.path.join(ANS_DIR, "insiders.csv")
+    days_path = os.path.join(ANS_DIR, "malicious_days.csv")
 
-    if not force and _already_extracted(out_path):
+    if not force and _already_extracted(out_path) and _already_extracted(days_path):
         warn("answers/insiders.csv already present — skipped")
         return
 
     _log(f"  Reading {os.path.basename(archive_path)} ...")
-    gt_df = build_ground_truth_from_answers(archive_path)
+    gt_df, days_df = build_ground_truth_from_answers(archive_path)
 
-    tmp_path = out_path + ".part"
-    gt_df.to_csv(tmp_path, index=False)
-    os.replace(tmp_path, out_path)
-    ok(f"answers/insiders.csv <- {len(gt_df)} labelled (scenario, user) windows across "
-       f"{gt_df['scenario'].nunique()} scenario(s), {gt_df['n_events'].sum():,} total events")
+    for frame, path in ((gt_df, out_path), (days_df, days_path)):
+        tmp_path = path + ".part"
+        frame.to_csv(tmp_path, index=False)
+        os.replace(tmp_path, path)
+
+    ok(f"answers/insiders.csv       <- {len(gt_df)} insider window(s) across "
+       f"{gt_df['scenario'].nunique()} {RELEASE} scenario(s), "
+       f"{gt_df['n_events'].sum():,} malicious events")
+    ok(f"answers/malicious_days.csv <- {len(days_df)} malicious (user, day) label(s)")
 
 
 def ingest_real_data(r6_archive: str, answers_archive: str, verify: bool = True, force: bool = False) -> None:
