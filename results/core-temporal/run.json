@@ -1,0 +1,100 @@
+{
+  "dataset": "dataset.parquet",
+  "dataset_manifest": {
+    "n_rows": 1394010,
+    "n_users": 4000,
+    "split_cutoff": "2010-12-29",
+    "n_train": 990765,
+    "n_test": 403245,
+    "n_malicious": 44,
+    "n_malicious_train": 6,
+    "n_malicious_test": 38,
+    "n_insiders": 5,
+    "label_source": "exact malicious-day labels"
+  },
+  "preset": "core",
+  "temporal": true,
+  "feature_cols": [
+    "n_logon",
+    "n_logoff",
+    "n_afterhours_logon",
+    "n_device_connect",
+    "n_file_events",
+    "n_file_to_removable",
+    "n_http_events",
+    "n_http_upload",
+    "n_distinct_domains",
+    "n_email_sent",
+    "n_email_external",
+    "n_email_attachments",
+    "total_email_size",
+    "n_logon_roll7",
+    "n_logoff_roll7",
+    "n_afterhours_logon_roll7",
+    "n_device_connect_roll7",
+    "n_file_events_roll7",
+    "n_file_to_removable_roll7",
+    "n_http_events_roll7",
+    "n_http_upload_roll7",
+    "n_distinct_domains_roll7",
+    "n_email_sent_roll7",
+    "n_email_external_roll7",
+    "n_email_attachments_roll7",
+    "total_email_size_roll7",
+    "n_logon_roll30",
+    "n_logoff_roll30",
+    "n_afterhours_logon_roll30",
+    "n_device_connect_roll30",
+    "n_file_events_roll30",
+    "n_file_to_removable_roll30",
+    "n_http_events_roll30",
+    "n_http_upload_roll30",
+    "n_distinct_domains_roll30",
+    "n_email_sent_roll30",
+    "n_email_external_roll30",
+    "n_email_attachments_roll30",
+    "total_email_size_roll30"
+  ],
+  "n_features": 39,
+  "alert_budget": 0.001,
+  "budget_sweep": [
+    0.0001,
+    0.0005,
+    0.001,
+    0.005,
+    0.01,
+    0.05
+  ],
+  "contamination": 0.02,
+  "min_history_days": 14,
+  "fit_subsample": 50000,
+  "max_users": null,
+  "random_state": 42,
+  "n_detectors": 11,
+  "n_train_rows": 990765,
+  "n_test_rows": 403245,
+  "n_malicious_test": 38,
+  "archetypes": {
+    "burst": {
+      "n_insiders": 3,
+      "users": [
+        "ACM2278",
+        "MBG3183",
+        "PLJ1771"
+      ],
+      "n_malicious_test_days": 0
+    },
+    "low_and_slow": {
+      "n_insiders": 2,
+      "users": [
+        "CDE1846",
+        "CMP2946"
+      ],
+      "n_malicious_test_days": 38
+    }
+  },
+  "elapsed_seconds": 727.8,
+  "run_at": "2026-09-08 16:19:05",
+  "platform": "Linux x86_64, Python 3.14.4",
+  "cpu_count": 14
+}
