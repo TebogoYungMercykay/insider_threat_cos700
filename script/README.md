@@ -1,6 +1,18 @@
 # script/
 
-This directory contains `dataset.py`, which ingests the official CERT Insider Threat Test Dataset (r6.2) into `data/raw/`. It only works with the real dataset — there is no synthetic or mock data mode, so it exits with an error rather than generating anything if the required archives aren't present.
+| Script          | Purpose                                                                    |
+| --------------- | -------------------------------------------------------------------------- |
+| `dataset.py`    | Ingest the official CERT r6.2 archives into `data/raw/`                     |
+| `aggregate.py`  | Stream the raw logs once into `data/artifacts/userday.parquet`              |
+| `prepare.py`    | Freeze counts + org context + labels + split into a self-contained dataset  |
+| `experiment.py` | Run the detector comparison and write `results/<preset>/`                   |
+
+Normal order: `dataset.py` -> `aggregate.py` -> `prepare.py`, then `train.py`
+(for the dashboard) and/or `experiment.py` (for the comparison numbers).
+
+## dataset.py
+
+This script ingests the official CERT Insider Threat Test Dataset (r6.2) into `data/raw/`. It only works with the real dataset — there is no synthetic or mock data mode, so it exits with an error rather than generating anything if the required archives aren't present.
 
 ## Quick start
 
