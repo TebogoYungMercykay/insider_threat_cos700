@@ -113,12 +113,41 @@ Useful flags:
 python train.py --dataset data/artifacts/dataset_cohort400_seed42.parquet  # train on a cohort
 python train.py --max-users 100          # quick smoke-test on a user subset
 python train.py --anomaly-method lof     # iforest | lof | ocsvm
+python train.py --scope role             # personal | role | population
+python train.py --statistic robust       # zscore (mean/std) | robust (median/IQR)
 python train.py --no-shap                # skip SHAP (faster)
 python train.py --force                  # ignore all caches, redo everything
 python train.py --force-step 4           # force only step 4 onward
 ```
 
-## 5. Launch the dashboard
+## 5. Compare against the other algorithms
+
+`train.py` fits the two models the dashboard uses. The comparison experiment
+that produces the dissertation's numbers is separate:
+
+```bash
+python script/experiment.py --preset core                # headline comparison
+python script/experiment.py --preset baselines           # Noever's four classifiers + floors
+python script/experiment.py --preset ablation            # scope x statistic x algorithm
+python script/experiment.py --preset core --temporal     # + causal rolling windows
+```
+
+Each run writes `comparison.md`, `comparison.csv`, `budget_sweep.csv`,
+`fpr_by_role.csv` and `run.json` (full provenance: dataset, split, features,
+seed, platform, timings) into `results/<preset>/`.
+
+Detectors are compared at a shared **alert budget** rather than a shared
+threshold — see [`evaluation.md`](evaluation.md) for why, and for what the
+benchmark's structure forces on the experiment.
+
+## 6. Run the tests
+
+```bash
+pytest -m "not slow"    # model + evaluation + data logic, no raw-log scans
+pytest                  # adds the tests that re-stream data/raw/ (~3 min)
+```
+
+## 7. Launch the dashboard
 
 ```bash
 streamlit run app.py
@@ -138,3 +167,5 @@ Opens a local Streamlit server (default `http://localhost:8501`) with five pages
 | `streamlit run app.py` shows "not trained yet"                  | Run `python train.py` first — the dashboard reads cached artifacts from `data/artifacts/`, it does not train on the fly.                                                                                                |
 | SHAP explainer unavailable                                      | Either `--no-shap` was used during training, or the `shap` package failed to import (see `pip install shap`) — the dashboard still works without it, using top-\|z-score\|-feature explanations for the per-user model. |
 | Out of memory on the full real dataset                          | Use `python train.py --max-users N` to work on a subset, or increase available RAM.                                                                                                                                     |
+| `script/experiment.py` is slow with `--preset full`             | LOF and One-Class SVM are quadratic in the training set. Lower `--fit-subsample`, or use `--preset core`. The full 4 000-user `rf` fit alone takes ~7 min because SMOTE expands 990 765 rows to 1 981 518.               |
+| A detector reports high recall but `tie_fraction` near 1.0       | Its scores are nearly all identical, so the alert budget was spent on a tiebreak lottery rather than on a ranking. `dt` does this on r6.2. The recall is real but says nothing about the detector.                       |

@@ -28,10 +28,13 @@ RAW_DIR   = os.path.join(ROOT, "data", "raw")
 ANS_DIR   = os.path.join(RAW_DIR, "answers")
 ARTIFACTS = os.path.join(ROOT, "data", "artifacts")
 
-requires_raw = pytest.mark.skipif(
+# Tests carrying this marker stream the raw logs. They are the reason the
+# aggregation is trustworthy, and they are also why the full suite takes
+# minutes -- hence the `slow` marker, so `pytest -m "not slow"` stays fast.
+requires_raw = pytest.mark.slow(pytest.mark.skipif(
     not os.path.exists(os.path.join(RAW_DIR, "logon.csv")),
     reason="raw CERT logs not present",
-)
+))
 requires_table = pytest.mark.skipif(
     not os.path.exists(os.path.join(ARTIFACTS, "userday.parquet")),
     reason="aggregated user-day table not built",
