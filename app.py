@@ -330,8 +330,15 @@ def page_compare(daily_df, population, peruser) -> None:
     )
 
     test_df = daily_df[daily_df["split"] == "test"]
-    role_filter = st.multiselect("Filter by role", sorted(daily_df["role"].unique()),
-                                  default=["SysAdmin", "DBAdmin", "Employee"])
+    all_roles = sorted(daily_df["role"].unique())
+    # Default to the roles the comparison is actually about: the high-privilege
+    # group plus the largest ordinary one. Hard-coded names would silently
+    # produce an empty selection, since r6.2's LDAP writes "ITAdmin" rather
+    # than the synthetic generator's "SysAdmin"/"DBAdmin".
+    hp_roles = sorted(daily_df.loc[daily_df["is_high_privilege"], "role"].unique())
+    common   = daily_df["role"].value_counts().index.tolist()
+    default_roles = (hp_roles + [r for r in common if r not in hp_roles][:2])[:4]
+    role_filter = st.multiselect("Filter by role", all_roles, default=default_roles)
     sub = test_df[test_df["role"].isin(role_filter)] if role_filter else test_df
     n_sample = st.slider("Sample size", 20, min(2000, max(20, len(sub))), min(300, len(sub)))
     sample = sub.sample(n=min(n_sample, len(sub)), random_state=42)
@@ -383,92 +390,132 @@ def page_compare(daily_df, population, peruser) -> None:
 
 
 def page_evaluate(daily_df, gt_df, population, peruser) -> None:
+    """@brief Population baseline vs per-user framework on the full test split."""
     st.subheader("Evaluation — Population Baseline vs Per-User Framework")
     st.markdown(
-        '<div class="info-box">Evaluated on the <b>held-out time-based test split</b> '
-        '(no leakage: both models are fit on the training window only). Adjust the '
-        'decision threshold to explore different operating points.</div>',
+        '<div class="info-box">Evaluated on the <b>entire held-out time-based test '
+        'split</b> — no leakage (both models are fit on the training window only) '
+        'and no sampling. Sampling would be fatal here: the malicious class is '
+        'roughly one user-day in thirty thousand, so a few thousand sampled rows '
+        'contain no positives at all and every metric computed on them is noise. '
+        'Detectors are compared at a shared <b>alert budget</b> rather than at a '
+        'shared threshold, because a Random Forest probability and an anomaly '
+        'score are not the same unit.</div>',
         unsafe_allow_html=True,
     )
 
     test_df = daily_df[daily_df["split"] == "test"].reset_index(drop=True)
 
-    col_t, col_s = st.columns(2)
-    threshold = col_t.slider("Decision threshold", 0.05, 0.95, 0.5, 0.05)
-    sample_n  = col_s.slider("Test rows to evaluate", 200, len(test_df), min(5000, len(test_df)))
+    col_b, col_i = st.columns(2)
+    budget = col_b.select_slider(
+        "Alert budget (share of test rows an analyst team can investigate)",
+        options=[0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05],
+        value=0.001, format_func=lambda b: f"{b * 100:.2f}%")
+    col_i.metric("Alerts this buys", f"{max(1, round(len(test_df) * budget)):,}",
+                 f"of {len(test_df):,} test rows")
 
     if st.button("Run Evaluation", type="primary"):
-        from src.baseline import results_to_frame
-        from src.evaluate import evaluate_predictions, evaluate_recall_by_archetype, measure_computational_cost
+        from src.evaluate import (
+            evaluate_recall_by_archetype, evaluate_scores, flags_for_budget,
+            fpr_by_role, measure_computational_cost,
+        )
 
-        sample = test_df.sample(n=min(sample_n, len(test_df)), random_state=42)
-
-        with st.status(f"Evaluating on {len(sample):,} sampled test rows…", expanded=True) as status:
-            status.write(f"Scoring Population (RF) baseline on {len(sample):,} rows…")
-            pop_res = results_to_frame(population.score(sample))
-            status.write(f"Scoring Per-User Framework on {len(sample):,} rows…")
-            per_res = results_to_frame(peruser.score(sample))
-            status.write("Computing primary metrics (recall, precision, F1, ROC-AUC, FPR)…")
-            pop_metrics = evaluate_predictions(pop_res, threshold=threshold)
-            per_metrics = evaluate_predictions(per_res, threshold=threshold)
-            status.write("Breaking recall down by attacker archetype…")
-            pop_arch = evaluate_recall_by_archetype(pop_res, gt_df, threshold=threshold)
-            per_arch = evaluate_recall_by_archetype(per_res, gt_df, threshold=threshold)
+        with st.status(f"Scoring all {len(test_df):,} test rows…", expanded=True) as status:
+            status.write("Scoring the population (RF) baseline…")
+            pop_scores = population.score_array(test_df)
+            status.write("Scoring the per-user framework…")
+            per_scores = peruser.raw_score(test_df)
+            status.write("Computing metrics at the shared alert budget…")
+            pop_metrics = evaluate_scores(test_df, pop_scores, budget=budget)
+            per_metrics = evaluate_scores(test_df, per_scores, budget=budget)
+            pop_flags, _ = flags_for_budget(pop_scores, budget)
+            per_flags, _ = flags_for_budget(per_scores, budget)
             status.update(label="Evaluation complete.", state="complete", expanded=False)
 
         st.markdown('<p class="section-header">Primary Metrics</p>', unsafe_allow_html=True)
-        comp = pd.DataFrame({
-            "Population (RF)": {k: pop_metrics[k] for k in
-                                 ["recall", "precision", "f1", "roc_auc", "fpr_overall", "fpr_high_privilege"]},
-            "Per-User Framework": {k: per_metrics[k] for k in
-                                    ["recall", "precision", "f1", "roc_auc", "fpr_overall", "fpr_high_privilege"]},
-        })
-        st.dataframe(comp, width="stretch")
+        rows = ["roc_auc", "avg_precision", "recall", "precision", "f1",
+                "lift", "insider_recall", "n_insiders_detected",
+                "fpr_overall", "fpr_high_privilege", "alert_share_high_privilege",
+                "n_flagged", "tie_fraction"]
+        st.dataframe(pd.DataFrame({
+            "Population (RF)":    {k: pop_metrics[k] for k in rows},
+            "Per-User Framework": {k: per_metrics[k] for k in rows},
+        }), width="stretch")
+        st.caption(
+            "`roc_auc` and `avg_precision` are threshold-free; everything else is "
+            "measured at the alert budget above. `lift` is precision over the "
+            "base rate — how many times better than spending the same budget at "
+            "random. `tie_fraction` is the share of alerts drawn arbitrarily "
+            "from equal scores; a high value means the ranking ran out."
+        )
 
         m1, m2, m3 = st.columns(3)
-        delta_recall = per_metrics["recall"] - pop_metrics["recall"]
-        delta_fpr_hp = per_metrics["fpr_high_privilege"] - pop_metrics["fpr_high_privilege"]
         m1.metric("Recall — Population", f"{pop_metrics['recall']:.3f}")
-        m2.metric("Recall — Per-User", f"{per_metrics['recall']:.3f}", f"{delta_recall:+.3f}")
-        m3.metric("FPR (high-privilege) Δ", f"{delta_fpr_hp:+.3f}",
-                   help="Negative is better: per-user framework flags fewer high-privilege false positives.")
+        m2.metric("Recall — Per-User", f"{per_metrics['recall']:.3f}",
+                  f"{per_metrics['recall'] - pop_metrics['recall']:+.3f}")
+        m3.metric("FPR (high-privilege) Δ",
+                  f"{per_metrics['fpr_high_privilege'] - pop_metrics['fpr_high_privilege']:+.4f}",
+                  help="Negative is better: the per-user framework spends fewer "
+                       "of its alerts on high-privilege users doing their job.")
 
-        st.markdown('<p class="section-header">Recall by Attacker Archetype</p>', unsafe_allow_html=True)
-        arch_df = pd.DataFrame({"Population (RF)": pop_arch, "Per-User Framework": per_arch}).fillna(0)
-        if not arch_df.empty:
-            st.dataframe(arch_df, width="stretch")
-            st.caption("`low_slow` insiders are the ones the research question targets: small, sustained "
-                       "per-user drift that a population-level model is expected to miss.")
+        st.markdown('<p class="section-header">Recall by Attacker Archetype</p>',
+                    unsafe_allow_html=True)
+        arch_pop = evaluate_recall_by_archetype(test_df, pop_flags, gt_df)
+        arch_per = evaluate_recall_by_archetype(test_df, per_flags, gt_df)
+        if arch_pop or arch_per:
+            st.dataframe(pd.DataFrame({
+                "Population (RF)":    {k: v["recall"] for k, v in arch_pop.items()},
+                "Per-User Framework": {k: v["recall"] for k, v in arch_per.items()},
+            }).fillna(0), width="stretch")
+            st.caption(
+                "Archetypes come from the answer key's own window geometry: an "
+                "insider whose malicious activity spans more than three weeks is "
+                "low-and-slow. On r6.2 every burst insider acts before the split "
+                "date and both low-and-slow insiders act after it, so the test "
+                "split measures low-and-slow detection only — and the supervised "
+                "baseline is being asked to generalise from burst training "
+                "examples to low-and-slow test ones."
+            )
         else:
-            st.info("No labelled malicious windows fall inside the sampled test rows — increase sample size.")
+            st.info("No labelled malicious days fall in the test split.")
 
-        st.markdown('<p class="section-header">False Positive Rate by Role</p>', unsafe_allow_html=True)
+        st.markdown('<p class="section-header">False Positive Rate by Role</p>',
+                    unsafe_allow_html=True)
         role_fpr_df = pd.DataFrame({
-            "Population (RF)": pd.Series(pop_metrics["fpr_by_role"]),
-            "Per-User Framework": pd.Series(per_metrics["fpr_by_role"]),
+            "Population (RF)":    pd.Series(fpr_by_role(test_df, pop_flags)),
+            "Per-User Framework": pd.Series(fpr_by_role(test_df, per_flags)),
         }).fillna(0).sort_values("Population (RF)")
-        fig, ax = _dark_fig(9, max(3, len(role_fpr_df) * 0.4))
-        y = np.arange(len(role_fpr_df))
-        ax.barh(y - 0.2, role_fpr_df["Population (RF)"], height=0.4, color=COLOR_RED, label="Population (RF)")
-        ax.barh(y + 0.2, role_fpr_df["Per-User Framework"], height=0.4, color=COLOR_BLUE, label="Per-User Framework")
-        ax.set_yticks(y)
-        ax.set_yticklabels(role_fpr_df.index)
-        ax.set_xlabel("False Positive Rate")
-        ax.legend(facecolor="#0d1117", labelcolor="white", fontsize=8)
-        ax.grid(axis="x", color="#1e2d45", linewidth=0.5, linestyle="--")
-        fig.tight_layout()
-        st.pyplot(fig, width="stretch")
-        plt.close(fig)
+        role_fpr_df = role_fpr_df[role_fpr_df.sum(axis=1) > 0].tail(20)
+        if len(role_fpr_df):
+            fig, ax = _dark_fig(9, max(3, len(role_fpr_df) * 0.4))
+            y = np.arange(len(role_fpr_df))
+            ax.barh(y - 0.2, role_fpr_df["Population (RF)"], height=0.4,
+                    color=COLOR_RED, label="Population (RF)")
+            ax.barh(y + 0.2, role_fpr_df["Per-User Framework"], height=0.4,
+                    color=COLOR_BLUE, label="Per-User Framework")
+            ax.set_yticks(y)
+            ax.set_yticklabels(role_fpr_df.index)
+            ax.set_xlabel("False Positive Rate")
+            ax.legend(facecolor="#0d1117", labelcolor="white", fontsize=8)
+            ax.grid(axis="x", color="#1e2d45", linewidth=0.5, linestyle="--")
+            fig.tight_layout()
+            st.pyplot(fig, width="stretch")
+            plt.close(fig)
+        else:
+            st.info("No role raised a false positive at this alert budget.")
 
-        st.markdown('<p class="section-header">Computational Cost</p>', unsafe_allow_html=True)
-        cost_pop = measure_computational_cost(
-            fit_fn=lambda: population, score_fn=lambda m: m.score(sample))
-        cost_per = measure_computational_cost(
-            fit_fn=lambda: peruser, score_fn=lambda m: m.score(sample))
-        cost_df = pd.DataFrame({"Population (RF)": cost_pop, "Per-User Framework": cost_per})
-        st.dataframe(cost_df, width="stretch")
-        st.caption("Fit time above reflects re-use of the already-trained model (0s); see train.py console "
-                   "output for original fit-from-scratch timings.")
+        st.markdown('<p class="section-header">Computational Cost</p>',
+                    unsafe_allow_html=True)
+        cost = pd.DataFrame({
+            "Population (RF)": measure_computational_cost(
+                lambda: population, lambda m: m.score_array(test_df)),
+            "Per-User Framework": measure_computational_cost(
+                lambda: peruser, lambda m: m.raw_score(test_df)),
+        })
+        st.dataframe(cost, width="stretch")
+        st.caption("Fit time here is zero because both models are already trained; "
+                   "see the train.py console output for fit-from-scratch timings, "
+                   "or run `python script/experiment.py` for measured fit cost.")
 
         with st.expander("Raw metrics JSON"):
             st.json({"population": pop_metrics, "peruser": per_metrics})
@@ -489,6 +536,8 @@ def page_about(meta: dict) -> None:
     | **User-days indexed** | {meta.get('n_rows', '?'):,} |
     | **Users** | {meta.get('n_users', '?')} |
     | **Anomaly Scorer method** | {meta.get('anomaly_method', '?')} |
+    | **Normalisation scope** | {meta.get('scope', 'personal')} |
+    | **Deviation statistic** | {meta.get('statistic', 'zscore')} |
     | **SHAP explainer** | {"Yes" if meta.get("shap_available") else "No"} |
     | **Last trained** | {meta.get('trained_at', 'unknown')} |
 
@@ -500,8 +549,21 @@ def page_about(meta: dict) -> None:
     | **`app.py`** | Streamlit UI: risk explorer, method comparison, evaluation |
     | **`src/preprocess.py`** | Raw CERT-schema log ingestion, per-(user, day) feature engineering, time-based split |
     | **`src/baseline.py`** | `BehaviouralProfiler` (Profile Builder + Role-Aware Normaliser), `PerUserBaselineEngine`, `PopulationBaseline` |
+    | **`src/features.py`** | Causal trailing-window aggregates (no forward leakage) |
+    | **`src/detectors.py`** | One fit/score interface over all comparison detectors |
+    | **`src/experiment.py`** | The controlled comparison + report rendering |
     | **`src/explain.py`** | SHAP TreeExplainer wrapper for the population RF baseline |
-    | **`src/evaluate.py`** | Recall, subgroup FPR, F1, ROC-AUC, computational cost |
+    | **`src/evaluate.py`** | Alert-budget operating points, subgroup FPR, archetype recall, cost |
+
+    #### Running the full comparison
+
+    This dashboard shows the two headline models. The complete comparison
+    against Noever's four population classifiers, the population-level anomaly
+    controls and the framework's own ablation is run from the command line:
+
+    ```
+    python script/experiment.py --preset full
+    ```
 
     #### Data
 
