@@ -111,9 +111,12 @@ def _mark_done(state: dict, step: str, fingerprint: dict, files: list[str]) -> N
 def train(
     dataset:         str | None = None,
     max_users:       int | None = None,
-    anomaly_method:  str = "iforest",
+    anomaly_method:  str = "ocsvm",
     contamination:   float = 0.03,
+    fit_subsample:   int | None = 50_000,
     min_history_days: int = 14,
+    scope:           str = "personal",
+    statistic:       str = "zscore",
     use_shap:        bool = True,
     force_from:      int = 99,
 ) -> None:
@@ -126,11 +129,22 @@ def train(
 
     @param max_users        Cap on distinct users loaded (None = all).
     @param anomaly_method    "iforest" | "lof" | "ocsvm" for the per-user
-                            framework's Anomaly Scorer component.
+                            framework's Anomaly Scorer component. Defaults to
+                            One-Class SVM, which the ablation in results/
+                            selects: on r6.2 base features it finds 21 of 38
+                            malicious test days against Isolation Forest's 3.
     @param contamination     Expected proportion of anomalous rows.
+    @param fit_subsample     Cap on training rows used to fit the anomaly
+                            model. One-Class SVM and LOF are quadratic in the
+                            training set and cannot be fitted on the full
+                            990k-row split; profiles still use every row.
     @param min_history_days  Minimum per-user training days before the
                             personal baseline is trusted over the role-group
                             baseline (cold-start threshold).
+    @param scope             Normalisation scope: "personal" | "role" |
+                            "population". "population" reproduces current
+                            practice and exists for the ablation.
+    @param statistic         "zscore" (mean/std) or "robust" (median/IQR).
     @param use_shap          If False, skip fitting the SHAP explainer.
     @param force_from        Re-run all steps >= this number, ignoring cache.
     """
@@ -254,7 +268,8 @@ def train(
     S3_FP    = {
         "n_train": len(train_df), "sig": _file_sig(PATHS["daily_df"]),
         "method": anomaly_method, "contamination": contamination,
-        "min_history_days": min_history_days,
+        "min_history_days": min_history_days, "fit_subsample": fit_subsample,
+        "scope": scope, "statistic": statistic,
     }
     S3_FILES = [PATHS["peruser"]]
 
@@ -263,14 +278,15 @@ def train(
         peruser = joblib.load(PATHS["peruser"])
     else:
         _step(3, f"Fitting Per-User Baseline Framework  "
-                 f"(Profile Builder + Role-Aware Normaliser + {anomaly_method.upper()})")
+                 f"({scope} scope, {statistic} statistic, {anomaly_method.upper()})")
         t0 = time.perf_counter()
 
         from src.baseline import PerUserBaselineEngine
 
         peruser = PerUserBaselineEngine(
             method=anomaly_method, contamination=contamination,
-            min_history_days=min_history_days,
+            min_history_days=min_history_days, scope=scope, statistic=statistic,
+            fit_subsample=fit_subsample,
         ).fit(train_df)
 
         n_personal = int((peruser.profiler.user_history_len_ >= min_history_days).sum())
@@ -325,6 +341,9 @@ def train(
         "anomaly_method":     anomaly_method,
         "contamination":      contamination,
         "min_history_days":   min_history_days,
+        "fit_subsample":      fit_subsample,
+        "scope":              scope,
+        "statistic":          statistic,
         "shap_available":     shap_ok,
         "trained_at":         time.strftime("%Y-%m-%d %H:%M:%S"),
         "max_users_arg":      max_users,
@@ -347,6 +366,9 @@ def train(
     print(f"  {dim('Run the app:')}")
     print(f"    {amber(_BOLD + 'streamlit run app.py' + _RESET)}")
     print()
+    print(f"  {dim('Compare against the other algorithms:')}")
+    print(f"    {amber('python script/experiment.py --preset full')}")
+    print()
     _divider("═", 70)
     print()
 
@@ -365,11 +387,21 @@ if __name__ == "__main__":
     parser.add_argument("--max-users", type=int, default=None, metavar="N",
                          help="Limit to first N users (for quick smoke-tests).")
     parser.add_argument("--anomaly-method", choices=["iforest", "lof", "ocsvm"],
-                         default="iforest", help="Anomaly Scorer algorithm.")
+                         default="ocsvm",
+                         help="Anomaly Scorer algorithm (default: ocsvm, which "
+                              "the ablation in results/ selects).")
+    parser.add_argument("--fit-subsample", type=int, default=50_000, metavar="N",
+                         help="Training-row cap for the anomaly model "
+                              "(0 = use every row; LOF/OCSVM need the cap).")
     parser.add_argument("--contamination", type=float, default=0.03,
                          help="Expected proportion of anomalous rows.")
     parser.add_argument("--min-history-days", type=int, default=14,
                          help="Cold-start threshold for personal vs role-group baseline.")
+    parser.add_argument("--scope", choices=["personal", "role", "population"],
+                         default="personal",
+                         help="Normalisation scope for the per-user framework.")
+    parser.add_argument("--statistic", choices=["zscore", "robust"], default="zscore",
+                         help="Deviation statistic: mean/std or median/IQR.")
     parser.add_argument("--no-shap", action="store_true",
                          help="Skip fitting the SHAP explainer.")
     parser.add_argument("--force", action="store_true",
@@ -385,7 +417,10 @@ if __name__ == "__main__":
         max_users=args.max_users,
         anomaly_method=args.anomaly_method,
         contamination=args.contamination,
+        fit_subsample=args.fit_subsample or None,
         min_history_days=args.min_history_days,
+        scope=args.scope,
+        statistic=args.statistic,
         use_shap=not args.no_shap,
         force_from=force_from,
     )
