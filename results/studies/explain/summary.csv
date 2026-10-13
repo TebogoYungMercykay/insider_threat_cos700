@@ -1,0 +1,41 @@
+view,explainer,insider,n_days,hit_at_1,hit_at_3,precision_at_3,chance_hit_at_1,chance_hit_at_3,chance_precision_at_3
+all malicious test days,personal z,all,38,0.9474,0.9474,0.6404,0.2955,0.6211,0.2955
+all malicious test days,role z,all,38,0.3947,0.7368,0.4386,0.2955,0.6211,0.2955
+all malicious test days,population z,all,38,0.5263,0.9211,0.5263,0.2955,0.6211,0.2955
+all malicious test days,RF SHAP,all,38,0.0263,0.5526,0.1842,0.2955,0.6211,0.2955
+all malicious test days,RF SHAP (positive only),all,38,0.5,0.5263,0.2632,0.2955,0.6211,0.2955
+all malicious test days,personal z,CDE1846,9,1.0,1.0,0.963,0.5385,0.9301,0.5385
+all malicious test days,personal z,CMP2946,29,0.931,0.931,0.5402,0.2202,0.5252,0.2202
+all malicious test days,role z,CDE1846,9,1.0,1.0,0.963,0.5385,0.9301,0.5385
+all malicious test days,role z,CMP2946,29,0.2069,0.6552,0.2759,0.2202,0.5252,0.2202
+all malicious test days,population z,CDE1846,9,1.0,1.0,1.0,0.5385,0.9301,0.5385
+all malicious test days,population z,CMP2946,29,0.3793,0.8966,0.3793,0.2202,0.5252,0.2202
+all malicious test days,RF SHAP,CDE1846,9,0.0,1.0,0.3333,0.5385,0.9301,0.5385
+all malicious test days,RF SHAP,CMP2946,29,0.0345,0.4138,0.1379,0.2202,0.5252,0.2202
+all malicious test days,RF SHAP (positive only),CDE1846,9,0.5556,0.5556,0.2963,0.5385,0.9301,0.5385
+all malicious test days,RF SHAP (positive only),CMP2946,29,0.4828,0.5172,0.2529,0.2202,0.5252,0.2202
+flagged by framework,personal z,all,21,1.0,1.0,0.6349,0.2601,0.5801,0.2601
+flagged by framework,role z,all,21,0.3333,0.6667,0.3651,0.2601,0.5801,0.2601
+flagged by framework,population z,all,21,0.3333,0.9524,0.4921,0.2601,0.5801,0.2601
+flagged by framework,RF SHAP,all,21,0.0476,0.4762,0.1587,0.2601,0.5801,0.2601
+flagged by framework,RF SHAP (positive only),all,21,0.2857,0.3333,0.1429,0.2601,0.5801,0.2601
+flagged by framework,personal z,CDE1846,3,1.0,1.0,1.0,0.5385,0.9301,0.5385
+flagged by framework,personal z,CMP2946,18,1.0,1.0,0.5741,0.2137,0.5218,0.2137
+flagged by framework,role z,CDE1846,3,1.0,1.0,1.0,0.5385,0.9301,0.5385
+flagged by framework,role z,CMP2946,18,0.2222,0.6111,0.2593,0.2137,0.5218,0.2137
+flagged by framework,population z,CDE1846,3,1.0,1.0,1.0,0.5385,0.9301,0.5385
+flagged by framework,population z,CMP2946,18,0.2222,0.9444,0.4074,0.2137,0.5218,0.2137
+flagged by framework,RF SHAP,CDE1846,3,0.0,1.0,0.3333,0.5385,0.9301,0.5385
+flagged by framework,RF SHAP,CMP2946,18,0.0556,0.3889,0.1296,0.2137,0.5218,0.2137
+flagged by framework,RF SHAP (positive only),CDE1846,3,0.0,0.0,0.0,0.5385,0.9301,0.5385
+flagged by framework,RF SHAP (positive only),CMP2946,18,0.3333,0.3889,0.1667,0.2137,0.5218,0.2137
+flagged by RF,personal z,all,8,1.0,1.0,0.5833,0.2885,0.6434,0.2885
+flagged by RF,role z,all,8,0.0,0.375,0.125,0.2885,0.6434,0.2885
+flagged by RF,population z,all,8,0.25,0.75,0.3333,0.2885,0.6434,0.2885
+flagged by RF,RF SHAP,all,8,0.0,0.0,0.0,0.2885,0.6434,0.2885
+flagged by RF,RF SHAP (positive only),all,8,0.875,1.0,0.5417,0.2885,0.6434,0.2885
+flagged by RF,personal z,CMP2946,8,1.0,1.0,0.5833,0.2885,0.6434,0.2885
+flagged by RF,role z,CMP2946,8,0.0,0.375,0.125,0.2885,0.6434,0.2885
+flagged by RF,population z,CMP2946,8,0.25,0.75,0.3333,0.2885,0.6434,0.2885
+flagged by RF,RF SHAP,CMP2946,8,0.0,0.0,0.0,0.2885,0.6434,0.2885
+flagged by RF,RF SHAP (positive only),CMP2946,8,0.875,1.0,0.5417,0.2885,0.6434,0.2885

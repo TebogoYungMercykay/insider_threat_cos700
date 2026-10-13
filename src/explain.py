@@ -40,12 +40,13 @@ def build_rf_explainer(rf_model):
 
 def explain_rows(explainer, df: pd.DataFrame, top_n: int = 3) -> list[list[tuple]]:
     """
-    @brief Compute per-row top-N SHAP feature contributions for the malicious class.
+    @brief Per-row top-N positive SHAP contributions towards the malicious class.
 
     @param explainer  A fitted shap.TreeExplainer (or None).
     @param df         Rows to explain (must contain FEATURE_COLS).
     @param top_n      Number of top contributing features to return per row.
-    @return           List (one per row) of [(feature, shap_value), ...],
+    @return           List (one per row) of [(feature, shap_value), ...] with
+                      shap_value > 0 (possibly fewer than top_n),
                       or [] per row if explainer is None.
     """
     if explainer is None or len(df) == 0:
@@ -67,8 +68,13 @@ def explain_rows(explainer, df: pd.DataFrame, top_n: int = 3) -> list[list[tuple
     else:
         contrib = raw
 
+    # Only features pushing towards "malicious" are named. Ranked by |phi|,
+    # a low-probability day's largest values are reasons *against* an alert,
+    # and the explanation study (script/studies.py explain) found that
+    # reading named the insider's actual behaviour first on 2.6% of malicious
+    # days, against 50% for positive contributions only.
     out = []
     for i in range(len(df)):
-        order = np.argsort(-np.abs(contrib[i]))[:top_n]
+        order = [j for j in np.argsort(-contrib[i]) if contrib[i, j] > 0][:top_n]
         out.append([(FEATURE_COLS[j], float(contrib[i, j])) for j in order])
     return out

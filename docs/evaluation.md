@@ -8,7 +8,7 @@ Run it with:
 
 ```bash
 python script/experiment.py --preset core      # the headline three-way comparison
-python script/experiment.py --preset full      # all 27 detectors
+python script/experiment.py --preset full      # all 45 detectors
 python script/experiment.py --preset ablation  # scope x statistic x algorithm
 ```
 
@@ -220,3 +220,66 @@ subsample of 50 000 training rows — they cannot be fitted on 990 765 rows on
 consumer hardware, and the proposal's feasibility claim is about consumer
 hardware. Profiles are always built on the full training split, and scoring
 always covers every test row. The subsample size is recorded in `run.json`.
+
+The supervised detectors' SMOTE step used to ignore the run's seed and always
+draw with 42. It now takes the seed like everything else; seed 42 results are
+unchanged.
+
+## Two queue metrics
+
+`insider_timing()` in `src/evaluate.py` adds two per-insider measures, written
+to `insider_timing.csv` by every run:
+
+- **`alerts_ahead`** — how many user-days rank above the insider's best-ranked
+  malicious day. Threshold-free: it is how far down the queue an analyst reads
+  before reaching this person, and it is the investigation-effort proxy for
+  sub-question 5.
+- **`detection_delay_days`** — days from the insider's first malicious day to
+  the first malicious day flagged at the budget. The problem statement is
+  about how long insiders go unnoticed; this measures it.
+
+Both use the same tie-broken ranking as the alert budget (`rank_rows()`), so a
+row is flagged at a budget of k exactly when its rank is ≤ k.
+
+## A known limit of the One-Class SVM score
+
+Far from every support vector the RBF kernel sum is zero, and the One-Class
+SVM's decision function equals its offset ρ. On the full test window 147
+user-days share that maximum score (3 of them malicious). At the 0.1% budget
+all 147 are inside the 403 alerts, so the headline is unaffected; at 40 alerts
+the choice among them is a coin toss (`tie_fraction` 1.0). Ordering the
+saturated group by the norm of the deviation vector would fix it.
+
+## Follow-up studies
+
+`python script/studies.py <study>` answers the questions the single-seed
+comparison leaves open. Each writes CSVs, `summary.md` and `run.json` to
+`results/studies/<study>/`; `src/studies.py` documents the design.
+
+| Study     | Question                                           | Design |
+| --------- | -------------------------------------------------- | ------ |
+| `seeds`   | Do the differences survive re-drawing every random component? | 7 detectors × 10 seeds; paired two-sided Wilcoxon signed-rank vs the framework on AP, recall and high-privilege alert share; Holm–Bonferroni over all 18 tests |
+| `history` | Sub-question 3: how much history does a personal baseline need? | Each user's training data cut to their most recent N active days (3 … 180, all); refit, rescore the unchanged test window; stability (mean shift, benign days beyond \|z\| = 3) and detection |
+| `explain` | Sub-question 5: does the explanation name what the insider did? | Answer-key rows replayed through the aggregator's own per-event handler give the features each malicious day actually moved; top-3 explanations scored (hit@1, hit@3, precision@3) against that and against a random explanation |
+
+What they found on the full population:
+
+- **History (SQ3).** A personal baseline is *stable* after about 30 active days
+  (benign days beyond |z| = 3 fall from 34% at 3 days to 8.7%, then flatten)
+  and *useful* after about 60 (recall 0.34 and both insiders, against 0.079 for
+  the role baseline; 0.50–0.58 from 120 days). Below 30 days it is worse than
+  the role baseline, and with the Isolation Forest scorer a 3-day baseline puts
+  44% of alerts on administrators — too little history recreates the
+  population failure. The 14-day cold-start default is too low; ~60 is the
+  evidence-based threshold.
+- **Explanations (SQ5).** The framework's top-named reason is a feature the
+  malicious events actually changed on 94.7% of malicious test days (random:
+  29.6%). The same method against the population manages 52.6%, against the
+  role group 39.5%. The Random Forest's SHAP explanations depend on how they
+  are read: ranked by |φ| they score 2.6% — worse than random, because on
+  low-probability days the largest values are reasons *against* an alert —
+  and restricted to positive contributions 50.0% overall and 87.5% on the
+  forest's own 8 alerts. The dashboard now shows only positive contributions.
+  The forest learned the malicious class from the training window's burst
+  insiders, so even read positively its top three beat a random explanation
+  less often than chance across all malicious days (52.6% vs 62.1%).
