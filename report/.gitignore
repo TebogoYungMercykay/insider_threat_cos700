@@ -1,0 +1,10 @@
+# LaTeX build artefacts; Report.pdf is kept.
+*.aux
+*.bbl
+*.blg
+*.log
+*.toc
+*.out
+*.synctex.gz
+*.synctex(busy)
+build.log

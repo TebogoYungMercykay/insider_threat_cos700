@@ -18,7 +18,7 @@ Most deployed insider-threat detectors score every user against a single, popula
 - **Real or synthetic data, same pipeline**: `script/dataset.py` ingests the official CERT r6.2 archives when present, or falls back to a schema-identical synthetic generator so the pipeline can be built and demonstrated without the multi-gigabyte official download.
 - **Explainability**: SHAP `TreeExplainer` for the population RF, and top-|z-score|-feature explanations for the per-user framework — every flagged day comes with a reason, not just a score.
 - **Proposal-defined evaluation metrics** (`src/evaluate.py`): recall, high-privilege subgroup false-positive rate, F1, ROC-AUC, and computational cost (fit time, inference latency, peak memory).
-- **Interactive dashboard** (`app.py`): Overview, per-user Risk Explorer, side-by-side Method Comparison, and an Evaluation page with a live score threshold slider.
+- **Interactive dashboard** (`app.py`): Overview, per-user Risk Explorer (each flagged day explained against the user's own typical day), side-by-side Method Comparison, an Evaluation page with a live alert-budget control, and a Findings page with the full-population results.
 
 ---
 
@@ -80,10 +80,20 @@ python train.py --force                  # nuke all caches, redo everything
 
 # 3. Compare against the other algorithms on the same split
 python script/experiment.py --preset core      # headline three-way comparison
-python script/experiment.py --preset full      # all 27 detectors
+python script/experiment.py --preset full      # all 45 detectors
 #    -> results/<preset>/comparison.md + .csv + run.json
 
-# 4. Launch the Streamlit dashboard
+# 4. Follow-up studies: seed robustness, history length (SQ3), explanations (SQ5)
+python script/studies.py history         # ~12 min
+python script/studies.py explain         # ~7 min, needs data/answers.tar.bz2
+python script/studies.py seeds           # ten seeds, ~90 min (the RF dominates)
+#    -> results/studies/<study>/summary.md + CSVs + run.json
+
+# 5. Build the report figures and the report
+python report/make_figures.py
+cd report && pdflatex Report && bibtex Report && pdflatex Report && pdflatex Report
+
+# 6. Launch the Streamlit dashboard
 streamlit run app.py
 ```
 
@@ -95,7 +105,8 @@ streamlit run app.py
 | [`docs/setup-guide.md`](docs/setup-guide.md)               | System requirements, full setup/run walkthrough, troubleshooting                                                      |
 | [`docs/data-pipeline.md`](docs/data-pipeline.md)           | How 93 GB of raw logs is trained on with 32 GB of RAM; cohort subsets; the correctness bugs this fixed                |
 | [`docs/dataset-notes.md`](docs/dataset-notes.md)           | How the official answer key is converted to day-level ground truth, LDAP schema handling, extending to other releases |
-| [`docs/evaluation.md`](docs/evaluation.md)                 | The comparison experiment: what is compared, how the operating point is made fair, and what the benchmark forces      |
+| [`docs/evaluation.md`](docs/evaluation.md)                 | The comparison experiment: what is compared, how the operating point is made fair, and what the benchmark forces; the follow-up studies |
+| [`report/Report.pdf`](report)                              | The COS700 research report (LaTeX source and figures script alongside)                                                |
 | [`docs/COS700 Research Proposal - Sello Selepe.pdf`](docs) | The accepted research proposal this implementation follows                                                            |
 
 ## Project Structure
@@ -112,9 +123,11 @@ insider_threat/
 ├── tests/
 │   ├── test_pipeline.py        # Data regression tests: shard invariance, feature
 │   │                           # semantics, ground-truth integrity, cohorts
-│   └── test_model.py           # Model + evaluation regression tests: scope
-│                               # selection, cold start, score saturation, alert
-│                               # budgets, tie handling, causal windows
+│   ├── test_model.py           # Model + evaluation regression tests: scope
+│   │                           # selection, cold start, score saturation, alert
+│   │                           # budgets, tie handling, causal windows
+│   └── test_studies.py         # Queue depth, Holm correction, history truncation,
+│                               # answer-key replay, explanation scoring
 ├── data/
 │   ├── README.md               # Dataset download / ingestion instructions
 │   ├── r6.2.tar.bz2            # (you provide) official log archive
@@ -134,7 +147,11 @@ insider_threat/
 │   ├── dataset.py              # real-data ingestion path + synthetic generator
 │   ├── aggregate.py            # one-time streaming reduction of the raw logs
 │   ├── prepare.py              # freeze counts + context + labels into one dataset
-│   └── experiment.py           # run the comparison and write the report
+│   ├── experiment.py           # run the comparison and write the report
+│   └── studies.py              # seeds / history (SQ3) / explain (SQ5) studies
+├── report/
+│   ├── Report.tex              # the COS700 research report
+│   └── make_figures.py         # every data figure, from results/
 └── src/
     ├── colors.py
     ├── schema.py               # feature set, raw-log layout, fast timestamp/URL parsing
@@ -145,11 +162,12 @@ insider_threat/
     ├── baseline.py             # Profile Builder, Role-Aware Normaliser, Anomaly
     │                           # Scorer (PerUserBaselineEngine); PopulationBaseline (RF)
     ├── features.py             # causal trailing-window aggregates (--temporal)
-    ├── detectors.py            # one fit/score interface over all 27 detectors
+    ├── detectors.py            # one fit/score interface over all 45 detectors
     ├── experiment.py           # the controlled comparison + report rendering
     ├── explain.py              # SHAP TreeExplainer wrapper (population RF)
+    ├── studies.py              # seed robustness, history length, explanation fidelity
     └── evaluate.py             # alert-budget operating points, subgroup FPR,
-                                # archetype recall, computational cost
+                                # archetype recall, queue depth, detection delay, cost
 ```
 
 ## Architecture — Three Components (Section 4.3 of the proposal)
@@ -266,6 +284,42 @@ population-scaled raw magnitudes alongside per-user deviations (`...-mag`)
 lowers AP and raises the high-privilege alert share 4-5x (7.7% -> 36.0%) — it
 re-creates precisely the population-baseline failure the research exists to
 remove. Kept in the ablation for that reason.
+
+### Follow-up studies (`python script/studies.py`)
+
+**Ten seeds.** Re-drawing every random component (fit subsample, forests,
+SMOTE, tie-break) ten times: the framework finds 20–21 of the 38 malicious
+days and both insiders in every seed; the Random Forest 3–8 days and one
+insider (its single-seed 8 was its best draw). 17 of 18 paired comparisons go
+the same way in all ten seeds (Wilcoxon, Holm-adjusted p = 0.035, the floor
+for this design): higher recall than every detector and a lower
+high-privilege alert share than every population detector. Not every
+comparison favours it: average precision ties with the same-algorithm control
+(5–5), and the role-scoped variant beats it on AP and alert share while
+finding a seventh of the days. The framework is also the only detector that
+puts both insiders inside its first 200 alerts — the Random Forest leaves
+CDE1846 ~24 000 alerts down.
+
+**Sub-question 3 — history needed.** Cutting every user's training history to
+their most recent N active days: a personal baseline is *stable* after about
+30 days (benign test days with any |z| > 3 fall from 34% at 3 days to 8.7%,
+then flatten near 6%) and *useful* after about 60 (recall 0.34 and both
+insiders, against 0.079 for the role baseline; 0.50–0.58 from 120 days). Below
+30 days it is worse than the role baseline, and with the Isolation Forest
+scorer a 3-day baseline puts 44% of alerts on administrators. The 14-day
+cold-start default is too low; ~60 days is what the data supports.
+
+**Sub-question 5 — explanations against the answer key.** Replaying the
+official answer key through the aggregator gives the features each malicious
+day actually moved. The framework's top-named reason is one of them on 94.7%
+of malicious test days (100% of its own alerts); a random explanation manages
+29.6%. The same method against the population scores 52.6%. The Random
+Forest's SHAP values score 2.6% ranked by |φ| — on low-probability days the
+largest values are reasons *against* an alert — and 50.0% read for positive
+contributions only (87.5% on its own 8 alerts). The dashboard now shows only
+positive contributions.
+
+The full write-up is the [research report](report/), built from these results.
 
 Full tables, the alert-budget sweep and per-role breakdowns are in `results/`
 (`core`, `core-temporal`, `baselines`, and a 45-detector `cohort400/full`
