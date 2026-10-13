@@ -1,0 +1,273 @@
+% ---------------------------------------------------------------------------
+% Bibliography for the COS700 research report.
+%
+% Every entry here was checked against the publisher, arXiv, or the authors'
+% own pages (October 2026). Several proposal references were corrected:
+%   * Noever's paper is "Classifier Suites for Insider Threat Detection",
+%     arXiv:1901.10948 (not "Machine learning classifiers and the insider
+%     threat", arXiv:1908.05895).
+%   * Yuan et al.'s "Insider threat detection with deep neural network" is an
+%     ICCS 2018 paper (LSTM-CNN), not IEEE TIFS 2021, and does not report a
+%     role-normalisation false-positive reduction.
+%   * Le and Zincir-Heywood's workflow paper is IEEE SPW 2018 (HMM, SOM,
+%     decision trees); it contains no SHAP user study.
+%   * Shoderu et al. is ICCWS 2026 with Baror, Modupe and Makura.
+%   * The IBM 2024 report gives 287 days to identify and contain a malicious
+%     insider breach (258 days for breaches overall), not 197.
+%   * "Liu, Xu, Shu and Liu (2019), Computers & Security" could not be found
+%     and is not cited.
+% ---------------------------------------------------------------------------
+
+@techreport{IBM2024,
+  author      = {{IBM Security}},
+  title       = {Cost of a Data Breach Report 2024},
+  institution = {IBM Corporation},
+  year        = {2024}
+}
+
+@book{Cappelli2012,
+  author    = {Dawn M. Cappelli and Andrew P. Moore and Randall F. Trzeciak},
+  title     = {The {CERT} Guide to Insider Threats: How to Prevent, Detect, and Respond to Information Technology Crimes},
+  publisher = {Addison-Wesley Professional},
+  year      = {2012}
+}
+
+@article{Homoliak2019,
+  author  = {Ivan Homoliak and Flavio Toffalini and Juan Guarnizo and Yuval Elovici and Mart{\'\i}n Ochoa},
+  title   = {Insight into Insiders and {IT}: A Survey of Insider Threat Taxonomies, Analysis, Modeling, and Countermeasures},
+  journal = {ACM Computing Surveys},
+  volume  = {52},
+  number  = {2},
+  pages   = {30:1--30:40},
+  year    = {2019}
+}
+
+@article{YuanWu2021,
+  author  = {Shuhan Yuan and Xintao Wu},
+  title   = {Deep learning for insider threat detection: Review, challenges and opportunities},
+  journal = {Computers \& Security},
+  volume  = {104},
+  pages   = {102221},
+  year    = {2021}
+}
+
+@misc{Lindauer2020,
+  author       = {Brian Lindauer},
+  title        = {Insider Threat Test Dataset},
+  howpublished = {Carnegie Mellon University, KiltHub. \url{https://doi.org/10.1184/R1/12841247.v1}},
+  year         = {2020}
+}
+
+@inproceedings{Glasser2013,
+  author    = {Joshua Glasser and Brian Lindauer},
+  title     = {Bridging the Gap: A Pragmatic Approach to Generating Insider Threat Data},
+  booktitle = {IEEE Security and Privacy Workshops (SPW)},
+  pages     = {98--104},
+  year      = {2013}
+}
+
+@misc{Noever2019,
+  author       = {David Noever},
+  title        = {Classifier Suites for Insider Threat Detection},
+  howpublished = {arXiv preprint arXiv:1901.10948},
+  year         = {2019}
+}
+
+@inproceedings{Le2018,
+  author    = {Duc C. Le and A. Nur Zincir-Heywood},
+  title     = {Evaluating Insider Threat Detection Workflow Using Supervised and Unsupervised Learning},
+  booktitle = {IEEE Security and Privacy Workshops (SPW)},
+  pages     = {270--275},
+  year      = {2018}
+}
+
+@article{Le2020,
+  author  = {Duc C. Le and Nur Zincir-Heywood and Malcolm I. Heywood},
+  title   = {Analyzing Data Granularity Levels for Insider Threat Detection Using Machine Learning},
+  journal = {IEEE Transactions on Network and Service Management},
+  volume  = {17},
+  number  = {1},
+  pages   = {30--44},
+  year    = {2020}
+}
+
+@inproceedings{Tuor2017,
+  author    = {Aaron Tuor and Samuel Kaplan and Brian Hutchinson and Nicole Nichols and Sean Robinson},
+  title     = {Deep Learning for Unsupervised Insider Threat Detection in Structured Cybersecurity Data Streams},
+  booktitle = {AAAI Workshop on Artificial Intelligence for Cyber Security},
+  pages     = {224--231},
+  year      = {2017}
+}
+
+@inproceedings{Yuan2018,
+  author    = {Fangfang Yuan and Yanan Cao and Yanmin Shang and Yanbing Liu and Jianlong Tan and Binxing Fang},
+  title     = {Insider Threat Detection with Deep Neural Network},
+  booktitle = {Computational Science -- ICCS 2018},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {10860},
+  publisher = {Springer},
+  year      = {2018}
+}
+
+@inproceedings{Shoderu2026,
+  author    = {Gabriel Shoderu and Stacey Baror and Abiodun Modupe and Sheunesu Makura},
+  title     = {Digital Forensic Readiness to Mitigate Insider Threats in the {SaaS} Cloud Environment},
+  booktitle = {Proceedings of the 21st International Conference on Cyber Warfare and Security (ICCWS)},
+  volume    = {21},
+  note      = {doi:10.34190/iccws.21.1.4508},
+  year      = {2026}
+}
+
+@misc{MSSentinelUEBA,
+  author       = {{Microsoft}},
+  title        = {Advanced threat detection with User and Entity Behavior Analytics ({UEBA}) in {Microsoft Sentinel}},
+  howpublished = {Microsoft Learn. \url{https://learn.microsoft.com/en-us/azure/sentinel/identify-threats-with-entity-behavior-analytics}. Accessed October 2026},
+  year         = {2026}
+}
+
+@inproceedings{Alahmadi2022,
+  author    = {Bushra A. Alahmadi and Louise Axon and Ivan Martinovic},
+  title     = {99\% False Positives: A Qualitative Study of {SOC} Analysts' Perspectives on Security Alarms},
+  booktitle = {31st USENIX Security Symposium},
+  year      = {2022}
+}
+
+@article{Chandola2009,
+  author  = {Varun Chandola and Arindam Banerjee and Vipin Kumar},
+  title   = {Anomaly Detection: A Survey},
+  journal = {ACM Computing Surveys},
+  volume  = {41},
+  number  = {3},
+  pages   = {15:1--15:58},
+  year    = {2009}
+}
+
+@inproceedings{Liu2008,
+  author    = {Fei Tony Liu and Kai Ming Ting and Zhi-Hua Zhou},
+  title     = {Isolation Forest},
+  booktitle = {Proceedings of the IEEE International Conference on Data Mining (ICDM)},
+  pages     = {413--422},
+  year      = {2008}
+}
+
+@inproceedings{Breunig2000,
+  author    = {Markus M. Breunig and Hans-Peter Kriegel and Raymond T. Ng and J{\"o}rg Sander},
+  title     = {{LOF}: Identifying Density-Based Local Outliers},
+  booktitle = {Proceedings of the ACM SIGMOD International Conference on Management of Data},
+  pages     = {93--104},
+  year      = {2000}
+}
+
+@article{Scholkopf2001,
+  author  = {Bernhard Sch{\"o}lkopf and John C. Platt and John Shawe-Taylor and Alex J. Smola and Robert C. Williamson},
+  title   = {Estimating the Support of a High-Dimensional Distribution},
+  journal = {Neural Computation},
+  volume  = {13},
+  number  = {7},
+  pages   = {1443--1471},
+  year    = {2001}
+}
+
+@inproceedings{Hawkins2002,
+  author    = {Simon Hawkins and Hongxing He and Graham Williams and Rohan Baxter},
+  title     = {Outlier Detection Using Replicator Neural Networks},
+  booktitle = {Data Warehousing and Knowledge Discovery (DaWaK)},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {2454},
+  pages     = {170--180},
+  year      = {2002}
+}
+
+@article{Rousseeuw2011,
+  author  = {Peter J. Rousseeuw and Mia Hubert},
+  title   = {Robust statistics for outlier detection},
+  journal = {WIREs Data Mining and Knowledge Discovery},
+  volume  = {1},
+  number  = {1},
+  pages   = {73--79},
+  year    = {2011}
+}
+
+@article{Chawla2002,
+  author  = {Nitesh V. Chawla and Kevin W. Bowyer and Lawrence O. Hall and W. Philip Kegelmeyer},
+  title   = {{SMOTE}: Synthetic Minority Over-sampling Technique},
+  journal = {Journal of Artificial Intelligence Research},
+  volume  = {16},
+  pages   = {321--357},
+  year    = {2002}
+}
+
+@article{Saito2015,
+  author  = {Takaya Saito and Marc Rehmsmeier},
+  title   = {The Precision-Recall Plot Is More Informative than the {ROC} Plot When Evaluating Binary Classifiers on Imbalanced Datasets},
+  journal = {PLoS ONE},
+  volume  = {10},
+  number  = {3},
+  pages   = {e0118432},
+  year    = {2015}
+}
+
+@inproceedings{Davis2006,
+  author    = {Jesse Davis and Mark Goadrich},
+  title     = {The Relationship Between Precision-Recall and {ROC} Curves},
+  booktitle = {Proceedings of the 23rd International Conference on Machine Learning (ICML)},
+  pages     = {233--240},
+  year      = {2006}
+}
+
+@inproceedings{Lundberg2017,
+  author    = {Scott M. Lundberg and Su-In Lee},
+  title     = {A Unified Approach to Interpreting Model Predictions},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {30},
+  pages     = {4765--4774},
+  year      = {2017}
+}
+
+@article{Lundberg2020,
+  author  = {Scott M. Lundberg and Gabriel Erion and Hugh Chen and Alex DeGrave and Jordan M. Prutkin and Bala Nair and Ronit Katz and Jonathan Himmelfarb and Nisha Bansal and Su-In Lee},
+  title   = {From local explanations to global understanding with explainable {AI} for trees},
+  journal = {Nature Machine Intelligence},
+  volume  = {2},
+  number  = {1},
+  pages   = {56--67},
+  year    = {2020}
+}
+
+@article{Wilcoxon1945,
+  author  = {Frank Wilcoxon},
+  title   = {Individual Comparisons by Ranking Methods},
+  journal = {Biometrics Bulletin},
+  volume  = {1},
+  number  = {6},
+  pages   = {80--83},
+  year    = {1945}
+}
+
+@article{Holm1979,
+  author  = {Sture Holm},
+  title   = {A Simple Sequentially Rejective Multiple Test Procedure},
+  journal = {Scandinavian Journal of Statistics},
+  volume  = {6},
+  number  = {2},
+  pages   = {65--70},
+  year    = {1979}
+}
+
+@article{Demsar2006,
+  author  = {Janez Dem{\v{s}}ar},
+  title   = {Statistical Comparisons of Classifiers over Multiple Data Sets},
+  journal = {Journal of Machine Learning Research},
+  volume  = {7},
+  pages   = {1--30},
+  year    = {2006}
+}
+
+@article{Pedregosa2011,
+  author  = {Fabian Pedregosa and Ga{\"e}l Varoquaux and Alexandre Gramfort and Vincent Michel and Bertrand Thirion and Olivier Grisel and Mathieu Blondel and Peter Prettenhofer and Ron Weiss and Vincent Dubourg and Jake Vanderplas and Alexandre Passos and David Cournapeau and Matthieu Brucher and Matthieu Perrot and {\'E}douard Duchesnay},
+  title   = {Scikit-learn: Machine Learning in {P}ython},
+  journal = {Journal of Machine Learning Research},
+  volume  = {12},
+  pages   = {2825--2830},
+  year    = {2011}
+}
