@@ -432,6 +432,94 @@ def budget_sweep(df: pd.DataFrame, scores: np.ndarray,
     return pd.DataFrame(rows)
 
 
+# ---------------------------------------------------------------------------
+# Where each insider sits in the queue, and when they were caught
+# ---------------------------------------------------------------------------
+#
+# Recall says whether a malicious day was flagged. It does not say how much
+# an analyst had to read before reaching it, or how long the insider had been
+# active by then -- and the problem statement is about exactly that: insider
+# incidents take the better part of a year to identify. Both are measured
+# here, against the same tie-broken ranking the alert budget uses, so a
+# detector's queue position and its recall can never disagree.
+
+def rank_rows(scores: np.ndarray, random_state: int = 42) -> np.ndarray:
+    """
+    @brief 1-based queue position of every row, ties broken as select_top_k
+           breaks them.
+
+    A row is flagged at a budget of k alerts if and only if its rank is <= k,
+    so ranks and budgeted flags are two views of one ordering.
+
+    @param scores        Risk scores, higher = more anomalous.
+    @param random_state  Seed for the tiebreak (same as select_top_k).
+    @return              Integer ranks, 1 = top of the queue.
+    """
+    scores = np.asarray(scores, dtype=float)
+    tiebreak = np.random.default_rng(random_state).random(len(scores))
+    order = np.lexsort((tiebreak, -scores))
+    rank = np.empty(len(scores), dtype=np.int64)
+    rank[order] = np.arange(1, len(scores) + 1)
+    return rank
+
+
+def insider_timing(df: pd.DataFrame, scores: np.ndarray,
+                   budget: float = DEFAULT_ALERT_BUDGET,
+                   random_state: int = 42) -> pd.DataFrame:
+    """
+    @brief Per insider: how deep in the queue their first appearance is, and
+           how many days after their first malicious day they were flagged.
+
+    `alerts_ahead` is threshold-free: the number of user-days an analyst
+    working down the ranked queue reviews before reaching this insider's
+    best-ranked malicious day. It is the investigation-effort proxy for
+    sub-question 5. `detection_delay_days` is measured at the alert budget,
+    from the insider's first malicious day in the scored rows to the first
+    malicious day that was flagged.
+
+    @param df            Scored rows with 'user', 'date' and 'is_malicious'.
+    @param scores        Risk scores aligned to df, higher = more anomalous.
+    @param budget        Alert budget for the delay measurement.
+    @param random_state  Seed for the tiebreak.
+    @return              One row per insider with malicious days in df.
+    """
+    columns = ["user", "n_malicious_days", "first_malicious_date", "best_rank",
+               "alerts_ahead", "n_detected", "first_detected_date",
+               "detection_delay_days"]
+    mal = df["is_malicious"].astype(bool).to_numpy()
+    if not mal.any():
+        return pd.DataFrame(columns=columns)
+
+    n = len(df)
+    k = max(1, int(round(n * min(max(budget, 0.0), 1.0))))
+    rank = rank_rows(scores, random_state)
+
+    work = pd.DataFrame({
+        "user": df["user"].astype(str).to_numpy()[mal],
+        "date": pd.to_datetime(df["date"]).to_numpy()[mal],
+        "rank": rank[mal],
+    })
+
+    rows = []
+    for user, grp in work.groupby("user"):
+        start = grp["date"].min()
+        hits  = grp[grp["rank"] <= k]
+        first = hits["date"].min() if len(hits) else pd.NaT
+        best  = int(grp["rank"].min())
+        rows.append({
+            "user":                 user,
+            "n_malicious_days":     int(len(grp)),
+            "first_malicious_date": start,
+            "best_rank":            best,
+            "alerts_ahead":         best - 1,
+            "n_detected":           int(len(hits)),
+            "first_detected_date":  first,
+            "detection_delay_days": (float((first - start).days)
+                                     if len(hits) else float("nan")),
+        })
+    return pd.DataFrame(rows, columns=columns)
+
+
 def measure_computational_cost(fit_fn, score_fn) -> dict:
     """
     @brief Measure fit time, inference latency, and peak memory of a detector.

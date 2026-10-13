@@ -1,0 +1,36 @@
+{
+  "study": "seeds",
+  "dataset": "dataset.parquet",
+  "seeds": [
+    42,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ],
+  "detectors": [
+    "peruser-ocsvm-personal-zscore",
+    "peruser-ocsvm-role-zscore",
+    "peruser-iforest-personal-zscore",
+    "pop-ocsvm",
+    "pop-iforest",
+    "rf",
+    "volume"
+  ],
+  "reference": "peruser-ocsvm-personal-zscore",
+  "alert_budget": 0.001,
+  "tested_metrics": [
+    "avg_precision",
+    "recall",
+    "alert_share_high_privilege"
+  ],
+  "n_test_rows": 403245,
+  "n_malicious_test": 38,
+  "elapsed_seconds": 5763.2,
+  "run_at": "2026-10-13 16:59:10"
+}

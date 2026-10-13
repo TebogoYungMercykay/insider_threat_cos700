@@ -32,7 +32,7 @@ import pandas as pd
 from src.detectors import Detector, build_detectors
 from src.evaluate import (
     BUDGET_SWEEP, DEFAULT_ALERT_BUDGET, budget_sweep, evaluate_recall_by_archetype,
-    evaluate_scores, flags_for_budget, fpr_by_role,
+    evaluate_scores, flags_for_budget, fpr_by_role, insider_timing,
 )
 from src.features import add_rolling_features, rolling_column_names
 from src.prepare import ground_truth_from_manifest, load_prepared
@@ -79,7 +79,8 @@ def load_experiment_data(dataset_path: str, temporal: bool = False,
 
 def run_detector(detector: Detector, train_df: pd.DataFrame, test_df: pd.DataFrame,
                  gt_df: pd.DataFrame, budget: float = DEFAULT_ALERT_BUDGET,
-                 budgets: tuple[float, ...] = BUDGET_SWEEP) -> dict:
+                 budgets: tuple[float, ...] = BUDGET_SWEEP,
+                 random_state: int = 42) -> dict:
     """
     @brief Fit one detector, score the full test split, and evaluate it.
 
@@ -93,7 +94,9 @@ def run_detector(detector: Detector, train_df: pd.DataFrame, test_df: pd.DataFra
     @param gt_df     Insider windows, for the archetype breakdown.
     @param budget    Headline alert budget.
     @param budgets   Budgets for the sweep.
-    @return          {"metrics": ..., "sweep": DataFrame, "role_fpr": ...}.
+    @param random_state  Seed for the tie-break at the alert-budget cut.
+    @return          {"metrics": ..., "sweep": DataFrame, "role_fpr": ...,
+                     "scores": ndarray, "timing": DataFrame}.
     """
     import tracemalloc
 
@@ -113,8 +116,8 @@ def run_detector(detector: Detector, train_df: pd.DataFrame, test_df: pd.DataFra
         finite_min = np.nanmin(scores[np.isfinite(scores)]) if np.isfinite(scores).any() else 0.0
         scores = np.nan_to_num(scores, nan=finite_min, posinf=finite_min, neginf=finite_min)
 
-    metrics = evaluate_scores(test_df, scores, budget=budget)
-    flagged, _ = flags_for_budget(scores, budget)
+    metrics = evaluate_scores(test_df, scores, budget=budget, random_state=random_state)
+    flagged, _ = flags_for_budget(scores, budget, random_state)
     arch    = evaluate_recall_by_archetype(test_df, flagged, gt_df)
 
     row = {**detector.describe(), **metrics}
@@ -131,9 +134,12 @@ def run_detector(detector: Detector, train_df: pd.DataFrame, test_df: pd.DataFra
 
     return {
         "metrics":  row,
-        "sweep":    budget_sweep(test_df, scores, budgets, gt_df).assign(detector=detector.name),
+        "sweep":    budget_sweep(test_df, scores, budgets, gt_df,
+                                 random_state).assign(detector=detector.name),
         "role_fpr": fpr_by_role(test_df, flagged),
         "scores":   scores,
+        "timing":   insider_timing(test_df, scores, budget,
+                                   random_state).assign(detector=detector.name),
     }
 
 
@@ -174,13 +180,15 @@ def run_comparison(dataset_path: str, preset: str = "core", temporal: bool = Fal
         min_history_days=min_history_days, fit_subsample=fit_subsample,
         random_state=random_state)
 
-    rows, sweeps, role_fprs = [], [], {}
+    rows, sweeps, timings, role_fprs = [], [], [], {}
     for i, detector in enumerate(detectors, 1):
         if on_detector:
             on_detector(i, len(detectors), detector)
-        out = run_detector(detector, train_df, test_df, gt_df, budget, budgets)
+        out = run_detector(detector, train_df, test_df, gt_df, budget, budgets,
+                           random_state)
         rows.append(out["metrics"])
         sweeps.append(out["sweep"])
+        timings.append(out["timing"])
         role_fprs[detector.name] = out["role_fpr"]
 
     results = pd.DataFrame(rows)
@@ -222,6 +230,7 @@ def run_comparison(dataset_path: str, preset: str = "core", temporal: bool = Fal
     }
 
     return {"results": results, "sweep": pd.concat(sweeps, ignore_index=True),
+            "timing": pd.concat(timings, ignore_index=True),
             "role_fpr": role_fprs, "manifest": run_manifest}
 
 
@@ -312,12 +321,14 @@ def write_report(outcome: dict, out_dir: str) -> dict:
         "results_csv":  os.path.join(out_dir, "comparison.csv"),
         "sweep_csv":    os.path.join(out_dir, "budget_sweep.csv"),
         "role_fpr_csv": os.path.join(out_dir, "fpr_by_role.csv"),
+        "timing_csv":   os.path.join(out_dir, "insider_timing.csv"),
         "manifest":     os.path.join(out_dir, "run.json"),
         "report_md":    os.path.join(out_dir, "comparison.md"),
     }
 
     results.to_csv(paths["results_csv"], index=False)
     outcome["sweep"].to_csv(paths["sweep_csv"], index=False)
+    outcome["timing"].to_csv(paths["timing_csv"], index=False)
     pd.DataFrame(outcome["role_fpr"]).to_csv(paths["role_fpr_csv"])
     with open(paths["manifest"], "w") as f:
         json.dump(outcome["manifest"], f, indent=2, default=str)
