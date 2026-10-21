@@ -502,3 +502,123 @@ def test_preprocess_and_prepare_agree():
     via_prepare, _ = build_prepared(counts, org, gt, days, train_frac=0.7)
 
     pd.testing.assert_frame_equal(via_preprocess, via_prepare)
+
+
+# ---------------------------------------------------------------------------
+# Low-disk ingestion (dataset.py --logs-from-archive)
+# ---------------------------------------------------------------------------
+
+def _load_dataset_script():
+    """@brief Import script/dataset.py as a module (scripts are not a package)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "dataset_script", os.path.join(ROOT, "script", "dataset.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _mini_r6_archive(tmp_path) -> str:
+    """@brief A tiny archive laid out like r6.2.tar.bz2: five logs + LDAP snapshots."""
+    import io
+    import tarfile
+    path = tmp_path / "r6.2.tar.bz2"
+    members = {f"r6.2/{name}": "id,date,user\n" for name in
+               ("logon.csv", "device.csv", "file.csv", "http.csv", "email.csv")}
+    members["r6.2/LDAP/2010-01.csv"] = "employee_name,user_id,role\nA B,ABC0001,Salesman\n"
+    members["r6.2/LDAP/2010-02.csv"] = "employee_name,user_id,role\nA B,ABC0001,Salesman\n"
+    with tarfile.open(path, "w:bz2") as tar:
+        for name, text in members.items():
+            data = text.encode()
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            tar.addfile(info, io.BytesIO(data))
+    return str(path)
+
+
+@pytest.mark.parametrize("include_logs", [True, False])
+def test_low_disk_ingest_leaves_the_logs_in_the_archive(tmp_path, monkeypatch, include_logs):
+    ds = _load_dataset_script()
+    raw = tmp_path / "raw"
+    monkeypatch.setattr(ds, "RAW_DIR", str(raw))
+    monkeypatch.setattr(ds, "LDAP_DIR", str(raw / "ldap"))
+
+    ds.ingest_r6_archive(_mini_r6_archive(tmp_path), include_logs=include_logs)
+
+    assert sorted(os.listdir(raw / "ldap")) == ["2010-01.csv", "2010-02.csv"]
+    logs = [f for f in ("logon.csv", "device.csv", "file.csv", "http.csv", "email.csv")
+            if (raw / f).exists()]
+    assert len(logs) == (5 if include_logs else 0)
+
+
+# ---------------------------------------------------------------------------
+# Compact host sets (keeps full aggregation inside an 8 GB laptop)
+# ---------------------------------------------------------------------------
+
+def _http_rows(n_users=3, n_days=3, per_day=40):
+    """@brief Web events with repeated hosts, so (user, day) keys straddle shards."""
+    rows = []
+    for d in range(n_days):
+        for u in range(n_users):
+            for i in range(per_day):
+                rows.append([f"i{d}{u}{i}", f"01/{4 + d:02d}/2010 {9 + i % 8:02d}:00:00",
+                             f"U{u}", "PC1", f"http://h{(i * (u + 1)) % 17}.com/p/{i}",
+                             "WWW Upload" if i % 9 == 0 else "WWW Visit", "x"])
+    return rows
+
+
+def test_hosts_are_packed_and_unioned_exactly_across_shards(tmp_path):
+    path = tmp_path / "http.csv"
+    with open(path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(S.LOG_COLUMNS["http"])
+        w.writerows(_http_rows())
+
+    ref_c, ref_d = {}, {}
+    with open(path, newline="") as f:
+        reader = csv.reader(f)
+        next(reader)
+        A._consume("http", reader, None, ref_c, ref_d)
+
+    counts, domains = {}, {}
+    ranges = A._line_ranges(str(path), 300)
+    assert len(ranges) > 10
+    for start, end in ranges:
+        part_c, part_d, _, _ = A._shard_worker(
+            ("http", str(path), start, end, None, S.INTERNAL_EMAIL_DOMAIN))
+        A._merge(counts, domains, part_c, part_d)
+
+    assert all(isinstance(v, bytes) for v in domains.values())
+    pd.testing.assert_frame_equal(A._to_frame(counts, domains), A._to_frame(ref_c, ref_d))
+
+
+def test_archive_batches_match_the_csv_path(tmp_path, monkeypatch):
+    import io
+    import tarfile
+
+    logs = _synthetic_logs()
+    logs["http"] = pd.DataFrame(_http_rows(), columns=S.LOG_COLUMNS["http"])
+    csv_dir = tmp_path / "csv"
+    csv_dir.mkdir()
+    archive = tmp_path / "r6.2.tar.bz2"
+    with tarfile.open(archive, "w:bz2") as tar:
+        for kind, df in logs.items():
+            out = df.copy()
+            if not isinstance(out["date"].iloc[0], str):
+                out["date"] = out["date"].dt.strftime("%m/%d/%Y %H:%M:%S")
+            out.to_csv(csv_dir / f"{kind}.csv", index=False)
+            data = (csv_dir / f"{kind}.csv").read_bytes()
+            info = tarfile.TarInfo(f"r6.2/{kind}.csv")
+            info.size = len(data)
+            tar.addfile(info, io.BytesIO(data))
+
+    expected = A.build_userday_table(str(csv_dir), workers=2)
+
+    monkeypatch.setattr(A, "ARCHIVE_BATCH_ROWS", 2)     # many batches, many merges
+    counts, domains = A._aggregate_from_archive(str(archive), None,
+                                                A.detect_org_domain(str(csv_dir)))
+    got = A._to_frame(counts, domains)
+
+    pd.testing.assert_frame_equal(got.reset_index(drop=True),
+                                  expected[got.columns].reset_index(drop=True),
+                                  check_dtype=False)

@@ -4,13 +4,18 @@ __pycache__/
 .venv/
 venv/
 
-# Dataset — never commit raw/derived data or the official archives
+# Dataset, never commit raw/derived data or the official archives
 data/raw/
 data/artifacts/
 data/*.tar.bz2
 data/*.tar.gz
 data/*.zip
 
+# Personal documents, kept locally only
+docs/*.pdf
+report/declaration.pdf
+
 # Streamlit / OS
-.streamlit/
+.streamlit/*
+!.streamlit/config.toml
 .DS_Store

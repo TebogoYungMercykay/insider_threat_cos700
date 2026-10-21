@@ -1,6 +1,6 @@
 ##
 # @file app.py
-# @brief Streamlit UI — Per-User Behavioural Baseline Framework for Insider Threat Detection.
+# @brief Streamlit UI, Per-User Behavioural Baseline Framework for Insider Threat Detection.
 #
 # Requires train.py to have been run first:
 #   python train.py
@@ -13,6 +13,8 @@ import os
 import sys
 import time
 import json
+import random
+from urllib.parse import quote
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -47,67 +49,66 @@ PATHS = {
     "meta":       os.path.join(ARTIFACTS_DIR, "meta.json"),
 }
 
-st.set_page_config(page_title="Insider Threat — Per-User Baseline", layout="wide")
+st.set_page_config(page_title="Insider Threat, Per-User Baseline", layout="wide")
 
 st.markdown(f"""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap');
-    body, .stApp {{ font-family: 'IBM Plex Sans', sans-serif; }}
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+    body, .stApp {{ font-family: 'Inter', sans-serif; }}
     code, .mono  {{ font-family: 'JetBrains Mono', monospace; }}
+    h1, h2, h3   {{ letter-spacing: -0.015em; }}
 
     .section-header {{
-        color: {COLOR_BLUE}; font-size: 1.05rem; font-weight: 600;
-        border-bottom: 2px solid {COLOR_BLUE}; padding-bottom: 4px; margin-bottom: 12px;
+        color: #4a7cc7; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.12em;
+        text-transform: uppercase; margin: 28px 0 12px 0;
     }}
-    .info-box {{
-        background-color: {COLOR_BG_BLUE}; border-left: 4px solid {COLOR_BLUE};
-        padding: 12px 16px; border-radius: 4px; margin-bottom: 12px;
+    .info-box, .warning-box, .danger-box, .success-box {{
+        background-color: #161b22; border: 1px solid #1e2d45; border-radius: 12px;
+        padding: 16px 20px; margin-bottom: 14px; line-height: 1.6;
     }}
-    .warning-box {{
-        background-color: {COLOR_BG_AMBER}; border-left: 4px solid {COLOR_AMBER};
-        padding: 12px 16px; border-radius: 4px; margin-bottom: 12px;
+    .warning-box {{ border-color: {COLOR_AMBER}; }}
+    .danger-box  {{ border-color: {COLOR_RED}; }}
+    .success-box {{ border-color: {COLOR_GREEN}; }}
+    div[data-testid="stMetric"] {{
+        background-color: #161b22; border: 1px solid #1e2d45; border-radius: 12px; padding: 16px 20px;
     }}
-    .danger-box {{
-        background-color: {COLOR_BG_RED}; border-left: 4px solid {COLOR_RED};
-        padding: 12px 16px; border-radius: 4px; margin-bottom: 12px;
-    }}
-    .success-box {{
-        background-color: {COLOR_BG_GREEN}; border-left: 4px solid {COLOR_GREEN};
-        padding: 12px 16px; border-radius: 4px; margin-bottom: 12px;
-    }}
-    div[data-testid="stMetricValue"] {{ color: {COLOR_BLUE}; font-weight: 700; }}
+    div[data-testid="stMetricLabel"] {{ color: #8b949e; }}
+    div[data-testid="stMetricValue"] {{ color: #e6edf3; font-weight: 700; }}
 
     .result-card {{
-        border: 1px solid rgba(21,101,192,0.3); border-radius: 6px;
-        padding: 14px 16px; margin-bottom: 10px; background-color: rgba(21,101,192,0.05);
+        border: 1px solid #1e2d45; border-radius: 12px;
+        padding: 16px 20px; margin-bottom: 10px; background-color: #161b22;
     }}
     .result-rank {{
-        color: {COLOR_BLUE}; font-size: 0.78rem; font-weight: 700;
-        text-transform: uppercase; letter-spacing: 0.06em;
+        color: #e6edf3; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; font-weight: 700;
     }}
     .cat-tag {{
-        display: inline-block; background: rgba(21,101,192,0.2); color: {COLOR_BLUE};
-        font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 3px; margin-left: 8px;
+        display: inline-block; background: #1c2330; color: #4a7cc7; border: 1px solid #2a3a5a;
+        font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 6px; margin-left: 8px;
     }}
     .hp-tag {{
-        display: inline-block; background: rgba(245,158,11,0.25); color: {COLOR_AMBER};
-        font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 3px; margin-left: 6px;
+        display: inline-block; border: 1px solid {COLOR_AMBER}; color: {COLOR_AMBER};
+        font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 6px; margin-left: 6px;
+    }}
+    .mal-tag {{
+        display: inline-block; background: {COLOR_AMBER}; color: #1a1203;
+        font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; margin-left: 6px;
     }}
     .banner-wrap {{
-        background: #0d1117; border: 1px solid {COLOR_BLUE}; border-radius: 8px;
-        padding: 28px 32px 20px 32px; margin-bottom: 24px; overflow: hidden;
+        background: #161b22; border: 1px solid #1e2d45; border-radius: 12px;
+        padding: 28px 32px 24px 32px; margin-bottom: 24px; overflow: hidden;
     }}
-    .banner-title {{ color: #fff; font-size: 1.15rem; font-weight: 700; margin: 0 0 4px 0; }}
-    .banner-subtitle {{ color: #8b949e; font-size: 0.85rem; margin: 0; }}
+    .banner-title {{ color: #e6edf3; font-size: 1.6rem; font-weight: 700; letter-spacing: -0.015em; margin: 0 0 4px 0; }}
+    .banner-subtitle {{ color: #8b949e; font-size: 0.9rem; margin: 0; }}
     .banner-tagline {{
-        font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #4a7cc7;
-        margin: 8px 0 14px 0; letter-spacing: 0.05em;
+        font-size: 0.78rem; font-weight: 600; color: #4a7cc7;
+        margin: 8px 0 14px 0; letter-spacing: 0.12em; text-transform: uppercase;
     }}
-    .banner-divider {{ border: none; border-top: 1px solid rgba(21,101,192,0.35); margin: 14px 0; }}
+    .banner-divider {{ border: none; border-top: 1px solid #1e2d45; margin: 14px 0; }}
     .banner-badge {{
-        display: inline-block; margin-top: 14px; padding: 3px 12px; border: 1px solid {COLOR_BLUE};
-        border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
-        font-weight: 600; letter-spacing: 0.1em; color: {COLOR_BLUE};
+        display: inline-block; margin-top: 14px; padding: 3px 10px; border: 1px solid #2a3a5a;
+        border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
+        font-weight: 500; color: #8b949e;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -154,22 +155,14 @@ def load_artifacts():
 
     @return  (daily_df, gt_df, population_baseline, peruser_engine, shap_explainer_or_None)
     """
+    # No UI in here: Streamlit replays elements created inside a cached
+    # function on every rerun, which left a "Loading…" box on every page.
     import joblib
-    with st.status("Loading trained artifacts…", expanded=True) as status:
-        status.write("Loading engineered feature table (daily_df.pkl)…")
-        daily_df = joblib.load(PATHS["daily_df"])
-        status.write("Loading ground-truth insider windows (gt_df.pkl)…")
-        gt_df = joblib.load(PATHS["gt_df"])
-        status.write("Loading Population (RF) baseline…")
-        population = joblib.load(PATHS["population"])
-        status.write("Loading Per-User Framework…")
-        peruser = joblib.load(PATHS["peruser"])
-        if os.path.exists(PATHS["shap"]):
-            status.write("Loading SHAP explainer…")
-            shap_explainer = joblib.load(PATHS["shap"])
-        else:
-            shap_explainer = None
-        status.update(label="Artifacts loaded.", state="complete", expanded=False)
+    daily_df   = joblib.load(PATHS["daily_df"])
+    gt_df      = joblib.load(PATHS["gt_df"])
+    population = joblib.load(PATHS["population"])
+    peruser    = joblib.load(PATHS["peruser"])
+    shap_explainer = joblib.load(PATHS["shap"]) if os.path.exists(PATHS["shap"]) else None
     return daily_df, gt_df, population, peruser, shap_explainer
 
 
@@ -184,10 +177,10 @@ def _dark_fig(w: float, h: float):
     fig, ax = plt.subplots(figsize=(w, h))
     ax.set_facecolor("#0d1117")
     fig.patch.set_facecolor("#0d1117")
-    ax.tick_params(colors="white", labelsize=8)
-    ax.xaxis.label.set_color("white")
-    ax.yaxis.label.set_color("white")
-    ax.title.set_color("white")
+    ax.tick_params(colors="#8b949e", labelsize=8)
+    ax.xaxis.label.set_color("#8b949e")
+    ax.yaxis.label.set_color("#8b949e")
+    ax.title.set_color("#e6edf3")
     for spine in ax.spines.values():
         spine.set_edgecolor("#2a3a5a")
     return fig, ax
@@ -212,23 +205,23 @@ def page_overview(daily_df, meta: dict) -> None:
     col_a, col_b, col_c = st.columns(3)
     with col_a:
         st.markdown(f"""<div class="info-box">
-            <b>1 · Profile Builder</b><br>
+            <b>1. Profile Builder</b><br>
             Per-user historical mean/std computed from each user's own training-window
             activity. Users with insufficient history fall back to their role-group
             baseline (cold-start handling).
         </div>""", unsafe_allow_html=True)
     with col_b:
         st.markdown(f"""<div class="info-box">
-            <b>2 · Role-Aware Normaliser</b><br>
+            <b>2. Role-Aware Normaliser</b><br>
             Features are z-scored relative to the user's own role-peer group,
-            not the whole organisation — a database administrator's bulk file access
+            not the whole organisation, a database administrator's bulk file access
             is only "unusual" if it's unusual <i>for a database administrator</i>.
         </div>""", unsafe_allow_html=True)
     with col_c:
         st.markdown(f"""<div class="info-box">
-            <b>3 · Anomaly Scorer</b><br>
+            <b>3. Anomaly Scorer</b><br>
             An unsupervised outlier model ({meta.get('anomaly_method','iforest').upper()})
-            scores each user-day's <i>deviation vector</i> — so one cheaply-trained
+            scores each user-day's <i>deviation vector</i>, so one cheaply-trained
             global model behaves as a per-user-aware detector.
         </div>""", unsafe_allow_html=True)
 
@@ -240,11 +233,33 @@ def page_overview(daily_df, meta: dict) -> None:
         ax.text(bar.get_width() + counts.max() * 0.01, bar.get_y() + bar.get_height() / 2,
                 f"{val:,}", va="center", color="white", fontsize=8, fontfamily="monospace")
     ax.set_xlabel("Users")
-    ax.grid(axis="x", color="#1e2d45", linewidth=0.5, linestyle="--")
+    ax.grid(axis="x", color="#1e2d45", linewidth=0.5)
     ax.set_axisbelow(True)
     fig.tight_layout()
     st.pyplot(fig, width="stretch")
     plt.close(fig)
+
+
+@st.cache_data(show_spinner=False)
+def budget_flags(_population, _peruser, _test_df, n_rows: int, budget: float = 0.001) -> dict:
+    """
+    @brief Which test user-days each model alerts on at the alert budget.
+
+    The same tie-broken selection the Evaluation page and the experiments
+    use, so the counts shown per user add up to the evaluation's numbers.
+    `n_rows` is the cache key; the leading-underscore arguments are not hashed.
+
+    @return  {"population"|"peruser": (flag mask, display-score cut)}.
+    """
+    from src.evaluate import flags_for_budget
+    out = {}
+    for name, model in (("population", _population), ("peruser", _peruser)):
+        ranking = (model.score_array(_test_df) if name == "population"
+                   else model.raw_score(_test_df))
+        flags, _ = flags_for_budget(ranking, budget)
+        display = model.score_array(_test_df)
+        out[name] = (flags, float(display[flags].min()))
+    return out
 
 
 def page_risk_explorer(daily_df, population, peruser, shap_explainer) -> None:
@@ -254,11 +269,20 @@ def page_risk_explorer(daily_df, population, peruser, shap_explainer) -> None:
     users = sorted(daily_df["user"].unique())
     col_u, col_m = st.columns([2, 1])
     with col_u:
-        user = st.selectbox("Select a user", users)
+        # ?user=CMP2946 preselects a user, so a specific case is one link away.
+        wanted = st.query_params.get("user")
+        user = st.selectbox("Select a user", users,
+                            index=users.index(wanted) if wanted in users else 0)
     with col_m:
         method = st.radio("Score with", ["Both", "Population (RF)", "Per-User Framework"], horizontal=False)
+        # Training days are scored in-sample, so the framework's percentile
+        # score spans the whole range there by construction; the held-out
+        # window is where a departure from the user's normal is visible.
+        test_only = st.checkbox("Test window only", value=True)
 
     user_df = daily_df[daily_df["user"] == user].sort_values("date").reset_index(drop=True)
+    if test_only and (user_df["split"] == "test").any():
+        user_df = user_df[user_df["split"] == "test"].reset_index(drop=True)
     role = user_df["role"].iloc[0]
     is_hp = bool(user_df["is_high_privilege"].iloc[0])
 
@@ -272,7 +296,8 @@ def page_risk_explorer(daily_df, population, peruser, shap_explainer) -> None:
     from src.explain import explain_rows
 
     pop_res = results_to_frame(population.score(user_df)) if method in ("Both", "Population (RF)") else None
-    per_res = results_to_frame(peruser.score(user_df)) if method in ("Both", "Per-User Framework") else None
+    per_objs = peruser.score(user_df) if method in ("Both", "Per-User Framework") else None
+    per_res = results_to_frame(per_objs) if per_objs is not None else None
 
     fig, ax = _dark_fig(11, 3.2)
     if pop_res is not None:
@@ -282,13 +307,33 @@ def page_risk_explorer(daily_df, population, peruser, shap_explainer) -> None:
     mal_days = user_df.loc[user_df["is_malicious"], "date"]
     for d in mal_days:
         ax.axvspan(d, d + pd.Timedelta(days=1), color=COLOR_AMBER, alpha=0.15)
+
+    # Each model's alert line at the 0.1% budget, and how many of this
+    # user's test days fall above it -- the scores themselves are on
+    # different scales, the alerts are not.
+    test_df = daily_df[daily_df["split"] == "test"].reset_index(drop=True)
+    flags = budget_flags(population, peruser, test_df, len(test_df))
+    in_user = (test_df["user"] == user).to_numpy()
+    counts = {}
+    for name, res, colour in (("population", pop_res, COLOR_RED), ("peruser", per_res, COLOR_BLUE)):
+        mask, cut = flags[name]
+        counts[name] = int(mask[in_user].sum())
+        if res is not None:
+            ax.axhline(cut, color=colour, linewidth=0.9, linestyle=":")
     ax.set_ylabel("Risk score")
-    ax.set_title(f"Risk score over time — {user}", fontsize=10)
+    ax.set_title(f"Risk score over time, {user}", fontsize=10)
     ax.legend(facecolor="#0d1117", labelcolor="white", fontsize=8)
-    ax.grid(color="#1e2d45", linewidth=0.5, linestyle="--")
+    ax.grid(color="#1e2d45", linewidth=0.5)
     fig.tight_layout()
     st.pyplot(fig, width="stretch")
     plt.close(fig)
+    n_mal_test = int(test_df.loc[in_user, "is_malicious"].sum())
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Alerts on this user, Population (RF)", counts["population"])
+    c2.metric("Alerts on this user, Per-User Framework", counts["peruser"])
+    c3.metric("Malicious test days (answer key)", n_mal_test)
+    st.caption("Dotted lines mark each model's alert line: the top 0.1% of all "
+               f"{len(test_df):,} test user-days, the budget used throughout the evaluation.")
 
     st.markdown('<p class="section-header">Highest-Risk Days</p>', unsafe_allow_html=True)
     display_res = per_res if per_res is not None else pop_res
@@ -300,11 +345,31 @@ def page_risk_explorer(daily_df, population, peruser, shap_explainer) -> None:
         exp_rows = user_df.set_index("date").loc[top["date"]].reset_index()
         shap_expl = explain_rows(shap_explainer, exp_rows)
         top["top_features"] = [
-            "; ".join(f"{f} ({v:+.3f})" for f, v in row) or "—" for row in shap_expl
+            "; ".join(f"{f} ({v:+.3f})" for f, v in row) or "none" for row in shap_expl
         ]
 
+    # For the per-user framework, say what each deviation is relative to: the
+    # value today against this person's own typical and 90th-percentile day.
+    # A bare z-score tells an analyst *that* a day is unusual; this tells them
+    # what to go and look at.
+    if display_res is per_res:
+        profile = peruser.profiler.profile_for(user, role)
+        by_date = {pd.Timestamp(r.date): r for r in per_objs}
+        values  = user_df.set_index("date")
+        lines = []
+        for d in top["date"]:
+            parts = []
+            for name, z in by_date[pd.Timestamp(d)].top_features:
+                feat = name.split("__")[0]
+                parts.append(
+                    f"<b>{feat}</b> = {values.loc[d, feat]:,.0f} "
+                    f"(usually {profile.loc[feat, 'p50']:,.0f}, 90th pct "
+                    f"{profile.loc[feat, 'p90']:,.0f}; {z:+.1f}σ)")
+            lines.append("<br>".join(parts) or "none")
+        top["top_features"] = lines
+
     for _, row in top.iterrows():
-        mal_flag = ' <span class="hp-tag" style="background:rgba(211,47,47,0.25);color:#ff6b6b;">MALICIOUS DAY</span>' if row["is_malicious"] else ""
+        mal_flag = ' <span class="mal-tag">MALICIOUS DAY</span>' if row["is_malicious"] else ""
         st.markdown(f"""
         <div class="result-card">
             <span class="result-rank">{row['date'].strftime('%Y-%m-%d')}</span>
@@ -314,87 +379,91 @@ def page_risk_explorer(daily_df, population, peruser, shap_explainer) -> None:
                 &nbsp;|&nbsp; Score: <b style="color:{COLOR_BLUE}">{row['score']:.3f}</b>
             </span>{mal_flag}
             <div style="font-family:monospace;font-size:0.8rem;color:#cdd;margin-top:6px;">
-                Top contributing features: {row['top_features'] if row['top_features'] else '—'}
+                Top contributing features: {row['top_features'] if row['top_features'] else 'none'}
             </div>
         </div>
         """, unsafe_allow_html=True)
 
 
 def page_compare(daily_df, population, peruser) -> None:
-    """@brief Side-by-side population vs per-user scoring across a chosen role/day slice."""
-    st.subheader("Method Comparison — Population Baseline vs Per-User Framework")
+    """@brief Who each model spends its alert budget on, role by role."""
+    st.subheader("Method Comparison. Who Gets the Alerts?")
     st.markdown(
-        '<div class="info-box">This page reproduces the central claim of the research proposal: '
-        'compare how each method scores the <b>same</b> activity for high-privilege vs standard users.</div>',
+        '<div class="info-box">The two models\' scores are in different units (a '
+        'probability and an anomaly score), so they are compared where it matters: '
+        'given the same alert budget, <b>whose activity does each model put in front '
+        'of an analyst?</b> A role that receives far more alerts than its share of '
+        'user-days is being flagged for what it normally does.</div>',
         unsafe_allow_html=True,
     )
 
-    test_df = daily_df[daily_df["split"] == "test"]
-    all_roles = sorted(daily_df["role"].unique())
-    # Default to the roles the comparison is actually about: the high-privilege
-    # group plus the largest ordinary one. Hard-coded names would silently
-    # produce an empty selection, since r6.2's LDAP writes "ITAdmin" rather
-    # than the synthetic generator's "SysAdmin"/"DBAdmin".
-    hp_roles = sorted(daily_df.loc[daily_df["is_high_privilege"], "role"].unique())
-    common   = daily_df["role"].value_counts().index.tolist()
-    default_roles = (hp_roles + [r for r in common if r not in hp_roles][:2])[:4]
-    role_filter = st.multiselect("Filter by role", all_roles, default=default_roles)
-    sub = test_df[test_df["role"].isin(role_filter)] if role_filter else test_df
-    n_sample = st.slider("Sample size", 20, min(2000, max(20, len(sub))), min(300, len(sub)))
-    sample = sub.sample(n=min(n_sample, len(sub)), random_state=42)
+    test_df = daily_df[daily_df["split"] == "test"].reset_index(drop=True)
+    budget = st.select_slider(
+        "Alert budget", options=[0.0005, 0.001, 0.005, 0.01], value=0.001,
+        format_func=lambda b: f"{b * 100:.2f}%  ({max(1, round(len(test_df) * b)):,} alerts)")
+    flags = budget_flags(population, peruser, test_df, len(test_df), budget)
+    pop_f, per_f = flags["population"][0], flags["peruser"][0]
+    hp = test_df["is_high_privilege"].astype(bool).to_numpy()
+    mal = test_df["is_malicious"].astype(bool).to_numpy()
+    k = int(pop_f.sum())
 
-    from src.baseline import results_to_frame
-    t0 = time.perf_counter()
-    pop_res = results_to_frame(population.score(sample))
-    t_pop = time.perf_counter() - t0
+    c = st.columns(4)
+    c[0].metric("High-privilege share of user-days", f"{hp.mean() * 100:.1f}%")
+    c[1].metric("High-priv alerts, RF",
+                f"{int((pop_f & hp).sum())} of {k}", f"{(pop_f & hp).sum() / k * 100:.0f}%",
+                delta_color="off")
+    c[2].metric("High-priv alerts, Per-User",
+                f"{int((per_f & hp).sum())} of {k}", f"{(per_f & hp).sum() / k * 100:.0f}%",
+                delta_color="off")
+    c[3].metric("Malicious days caught (RF → Per-User)",
+                f"{int((pop_f & mal).sum())} → {int((per_f & mal).sum())}")
 
-    t0 = time.perf_counter()
-    per_res = results_to_frame(peruser.score(sample))
-    t_per = time.perf_counter() - t0
+    st.markdown('<p class="section-header">Alerts by Role</p>', unsafe_allow_html=True)
+    roles = test_df["role"].astype(str).to_numpy()
+    frame = pd.DataFrame({
+        "Population (RF)":    pd.Series(roles[pop_f]).value_counts(),
+        "Per-User Framework": pd.Series(roles[per_f]).value_counts(),
+    }).fillna(0)
+    frame["Fair share"] = pd.Series(roles).value_counts(normalize=True).reindex(frame.index) * k
+    frame = frame.loc[frame[["Population (RF)", "Per-User Framework"]].max(axis=1)
+                      .sort_values(ascending=False).index[:10]].iloc[::-1]
 
-    c1, c2 = st.columns(2)
-    c1.metric("Population (RF) scoring time", f"{t_pop*1000:.1f} ms", f"{len(sample)} rows")
-    c2.metric("Per-User Framework scoring time", f"{t_per*1000:.1f} ms", f"{len(sample)} rows")
-
-    merged = pop_res[["user", "date", "role", "score"]].rename(columns={"score": "population_score"})
-    merged = merged.merge(
-        per_res[["user", "date", "score", "baseline_used"]].rename(columns={"score": "peruser_score"}),
-        on=["user", "date"], how="inner",
-    )
-    merged["role_high_priv"] = merged["role"].isin(["SysAdmin", "DBAdmin"])
-
-    fig, ax = _dark_fig(9, 5.5)
-    colors = np.where(merged["role_high_priv"], COLOR_AMBER, COLOR_BLUE)
-    ax.scatter(merged["population_score"], merged["peruser_score"], c=colors, s=18, alpha=0.7)
-    ax.set_xlabel("Population (RF) score")
-    ax.set_ylabel("Per-User Framework score")
-    ax.set_title("Score comparison  (amber = high-privilege role)", fontsize=10)
-    ax.grid(color="#1e2d45", linewidth=0.5, linestyle="--")
-    fig.tight_layout()
-    st.pyplot(fig, width="stretch")
-    plt.close(fig)
-
-    st.markdown('<p class="section-header">Mean Score by Role</p>', unsafe_allow_html=True)
-    role_means = merged.groupby("role")[["population_score", "peruser_score"]].mean().sort_values("population_score")
-    fig, ax = _dark_fig(9, max(3, len(role_means) * 0.4))
-    y = np.arange(len(role_means))
-    ax.barh(y - 0.2, role_means["population_score"], height=0.4, color=COLOR_RED, label="Population (RF)")
-    ax.barh(y + 0.2, role_means["peruser_score"], height=0.4, color=COLOR_BLUE, label="Per-User Framework")
+    fig, ax = _dark_fig(9, max(3, len(frame) * 0.48))
+    y = np.arange(len(frame))
+    ax.barh(y + 0.2, frame["Population (RF)"], height=0.38, color=COLOR_RED, label="Population (RF)")
+    ax.barh(y - 0.2, frame["Per-User Framework"], height=0.38, color=COLOR_BLUE, label="Per-User Framework")
+    ax.scatter(frame["Fair share"], y, marker="|", s=260, color="white", zorder=3,
+               label="Alerts expected from the role's share of user-days")
     ax.set_yticks(y)
-    ax.set_yticklabels(role_means.index)
-    ax.legend(facecolor="#0d1117", labelcolor="white", fontsize=8)
-    ax.grid(axis="x", color="#1e2d45", linewidth=0.5, linestyle="--")
+    ax.set_yticklabels(frame.index)
+    ax.set_xlabel(f"Alerts at the {budget * 100:.2f}% budget")
+    ax.legend(facecolor="#0d1117", labelcolor="white", fontsize=8, loc="lower right")
+    ax.grid(axis="x", color="#1e2d45", linewidth=0.5)
     fig.tight_layout()
     st.pyplot(fig, width="stretch")
     plt.close(fig)
+
+    st.markdown('<p class="section-header">High-Privilege Users Each Model Flagged</p>',
+                unsafe_allow_html=True)
+    users = test_df["user"].astype(str).to_numpy()
+    hp_table = pd.DataFrame({
+        "Population (RF) alerts":    pd.Series(users[pop_f & hp]).value_counts(),
+        "Per-User Framework alerts": pd.Series(users[per_f & hp]).value_counts(),
+    }).fillna(0).astype(int).sort_values("Population (RF) alerts", ascending=False)
+    hp_table["Malicious test days"] = [int(mal[users == u].sum()) for u in hp_table.index]
+    if len(hp_table):
+        st.dataframe(hp_table, width="stretch")
+        st.caption("Pick any of these users in the Risk Explorer to see why.")
+    else:
+        st.info("Neither model flagged a high-privilege user at this budget.")
 
 
 def page_evaluate(daily_df, gt_df, population, peruser) -> None:
     """@brief Population baseline vs per-user framework on the full test split."""
-    st.subheader("Evaluation — Population Baseline vs Per-User Framework")
+    st.subheader("Evaluation. Population Baseline vs Per-User Framework")
     st.markdown(
         '<div class="info-box">Evaluated on the <b>entire held-out time-based test '
-        'split</b> — no leakage (both models are fit on the training window only) '
+        'split</b>, no leakage (both models are fit on the training window only) '
         'and no sampling. Sampling would be fatal here: the malicious class is '
         'roughly one user-day in thirty thousand, so a few thousand sampled rows '
         'contain no positives at all and every metric computed on them is noise. '
@@ -444,14 +513,14 @@ def page_evaluate(daily_df, gt_df, population, peruser) -> None:
         st.caption(
             "`roc_auc` and `avg_precision` are threshold-free; everything else is "
             "measured at the alert budget above. `lift` is precision over the "
-            "base rate — how many times better than spending the same budget at "
+            "base rate, how many times better than spending the same budget at "
             "random. `tie_fraction` is the share of alerts drawn arbitrarily "
             "from equal scores; a high value means the ranking ran out."
         )
 
         m1, m2, m3 = st.columns(3)
-        m1.metric("Recall — Population", f"{pop_metrics['recall']:.3f}")
-        m2.metric("Recall — Per-User", f"{per_metrics['recall']:.3f}",
+        m1.metric("Recall, Population", f"{pop_metrics['recall']:.3f}")
+        m2.metric("Recall, Per-User", f"{per_metrics['recall']:.3f}",
                   f"{per_metrics['recall'] - pop_metrics['recall']:+.3f}")
         m3.metric("FPR (high-privilege) Δ",
                   f"{per_metrics['fpr_high_privilege'] - pop_metrics['fpr_high_privilege']:+.4f}",
@@ -472,7 +541,7 @@ def page_evaluate(daily_df, gt_df, population, peruser) -> None:
                 "insider whose malicious activity spans more than three weeks is "
                 "low-and-slow. On r6.2 every burst insider acts before the split "
                 "date and both low-and-slow insiders act after it, so the test "
-                "split measures low-and-slow detection only — and the supervised "
+                "split measures low-and-slow detection only, and the supervised "
                 "baseline is being asked to generalise from burst training "
                 "examples to low-and-slow test ones."
             )
@@ -497,7 +566,7 @@ def page_evaluate(daily_df, gt_df, population, peruser) -> None:
             ax.set_yticklabels(role_fpr_df.index)
             ax.set_xlabel("False Positive Rate")
             ax.legend(facecolor="#0d1117", labelcolor="white", fontsize=8)
-            ax.grid(axis="x", color="#1e2d45", linewidth=0.5, linestyle="--")
+            ax.grid(axis="x", color="#1e2d45", linewidth=0.5)
             fig.tight_layout()
             st.pyplot(fig, width="stretch")
             plt.close(fig)
@@ -519,6 +588,76 @@ def page_evaluate(daily_df, gt_df, population, peruser) -> None:
 
         with st.expander("Raw metrics JSON"):
             st.json({"population": pop_metrics, "peruser": per_metrics})
+
+
+RESULTS_DIR = os.path.join(ROOT, "results")
+FIGURES_DIR = os.path.join(ROOT, "report", "figures")
+
+
+def _figure(name: str, caption: str) -> None:
+    """@brief Show one of the report's figures, or say how to build it."""
+    path = os.path.join(FIGURES_DIR, f"{name}.png")
+    if os.path.exists(path):
+        st.image(path, caption=caption, width="stretch")
+    else:
+        st.info(f"Figure `{name}` not built yet, run `python report/make_figures.py`.")
+
+
+def page_findings() -> None:
+    """@brief The research findings, read from results/ rather than recomputed."""
+    st.subheader("Research Findings. Full CERT r6.2 Population")
+    st.markdown(
+        '<div class="info-box">Everything on this page is read from the experiment '
+        'outputs in <code>results/</code>, produced on the <b>full 4,000-user dataset</b> '
+        '(403,245 test user-days, 38 malicious, 2 insiders) at an alert budget of '
+        '<b>0.1%</b>, 403 alerts over five months. The other pages run on a 400-user '
+        'cohort so they stay interactive.</div>', unsafe_allow_html=True)
+
+    core_path = os.path.join(RESULTS_DIR, "core", "comparison.csv")
+    if not os.path.exists(core_path):
+        st.warning("No results yet, run `python script/experiment.py --preset core`.")
+        return
+    core = pd.read_csv(core_path).set_index("detector")
+    fw, rf = core.loc["peruser-ocsvm-personal-zscore"], core.loc["rf"]
+
+    st.markdown('<p class="section-header">Framework vs the proposal\'s Random Forest baseline</p>',
+                unsafe_allow_html=True)
+    c = st.columns(4)
+    n_mal = int(fw["n_malicious_rows"])
+    c[0].metric("Malicious days found", f"{round(fw['recall'] * n_mal)} / {n_mal}",
+                f"RF: {round(rf['recall'] * n_mal)} / {n_mal}")
+    c[1].metric("Insiders surfaced", f"{int(fw['n_insiders_detected'])} / {int(fw['n_insiders'])}",
+                f"RF: {int(rf['n_insiders_detected'])} / {int(rf['n_insiders'])}")
+    c[2].metric("Alerts on high-privilege users", f"{fw['alert_share_high_privilege'] * 100:.1f}%",
+                f"RF: {rf['alert_share_high_privilege'] * 100:.1f}%", delta_color="off")
+    c[3].metric("Training time", f"{fw['fit_seconds']:.1f} s",
+                f"RF: {rf['fit_seconds']:.0f} s", delta_color="off")
+
+    tabs = st.tabs(["SQ1 Low-and-slow", "SQ2 High-privilege", "Robustness",
+                    "SQ3 History", "SQ5 Explanations"])
+    with tabs[0]:
+        _figure("timeline", "The two test-window insiders, scored against their own "
+                "history (blue) and by the same One-Class SVM on population-scaled "
+                "features (green). Only the reference frame differs.")
+        _figure("budget_sweep", "Recall at every alert budget.")
+    with tabs[1]:
+        _figure("alert_share", "Share of each detector's 403 alerts spent on IT "
+                "administrators, who are 2.4% of the test user-days.")
+    with tabs[2]:
+        path = os.path.join(RESULTS_DIR, "studies", "seeds", "tests.csv")
+        _figure("seeds", "Ten seeds per detector; the black tick is the mean.")
+        if os.path.exists(path):
+            tests = pd.read_csv(path)
+            st.dataframe(tests[["comparator", "metric", "reference_mean", "comparator_mean",
+                                "wins", "losses", "p_holm", "significant"]],
+                         width="stretch", hide_index=True)
+            st.caption("Paired Wilcoxon signed-rank tests of the framework against each "
+                       "detector across seeds, Holm-Bonferroni corrected.")
+    with tabs[3]:
+        _figure("history", "Detection and stability against days of personal history.")
+    with tabs[4]:
+        _figure("explain", "How often each system's explanation names a feature the "
+                "insider actually used, scored against the official answer key.")
 
 
 def page_about(meta: dict) -> None:
@@ -546,14 +685,15 @@ def page_about(meta: dict) -> None:
     | Component | Responsibility |
     |-----------|---------------|
     | **`train.py`** | Caching pipeline: feature engineering → population RF → per-user framework → SHAP → manifest |
-    | **`app.py`** | Streamlit UI: risk explorer, method comparison, evaluation |
+    | **`app.py`** | Streamlit UI: risk explorer, method comparison, evaluation, findings |
     | **`src/preprocess.py`** | Raw CERT-schema log ingestion, per-(user, day) feature engineering, time-based split |
     | **`src/baseline.py`** | `BehaviouralProfiler` (Profile Builder + Role-Aware Normaliser), `PerUserBaselineEngine`, `PopulationBaseline` |
     | **`src/features.py`** | Causal trailing-window aggregates (no forward leakage) |
     | **`src/detectors.py`** | One fit/score interface over all comparison detectors |
     | **`src/experiment.py`** | The controlled comparison + report rendering |
     | **`src/explain.py`** | SHAP TreeExplainer wrapper for the population RF baseline |
-    | **`src/evaluate.py`** | Alert-budget operating points, subgroup FPR, archetype recall, cost |
+    | **`src/evaluate.py`** | Alert-budget operating points, subgroup FPR, archetype recall, queue depth and detection delay, cost |
+    | **`src/studies.py`** | Follow-up studies: seed robustness, history length (SQ3), explanation fidelity (SQ5) |
 
     #### Running the full comparison
 
@@ -571,7 +711,7 @@ def page_about(meta: dict) -> None:
     (`logon.csv`, `device.csv`, `file.csv`, `http.csv`, `email.csv`, monthly LDAP
     org-structure snapshots). The real dataset must be downloaded manually from
     [kilthub.cmu.edu](https://kilthub.cmu.edu/articles/dataset/Insider_Threat_Test_Dataset/12841247)
-    (Lindauer, 2020) and placed in `data/` — see `data/README.md`. `script/dataset.py`
+    (Lindauer, 2020) and placed in `data/`. See `data/README.md`. `script/dataset.py`
     then verifies, extracts, and converts the official answer key automatically.
     If the real archives aren't present, it falls back to a **schema-identical synthetic
     dataset** with two injected attacker archetypes (`burst`, `low_slow`) and a legitimate
@@ -583,7 +723,7 @@ def page_about(meta: dict) -> None:
     - Role-aware normalisation targets the false-positive problem for high-privilege users
       (database administrators, system operators) described in the proposal's Problem Statement.
     - The Anomaly Scorer operates on *deviation* vectors (not raw magnitudes), so a single
-      cheaply-trained model implicitly becomes per-user-aware — this is what keeps the
+      cheaply-trained model implicitly becomes per-user-aware. This is what keeps the
       framework's fit/inference cost low enough for consumer hardware.
     - SHAP explanations (population model) and top-deviating-feature explanations
       (per-user model) give an analyst a reason for every flagged day, not just a score.
@@ -594,19 +734,105 @@ def page_about(meta: dict) -> None:
 # Navigation
 # ---------------------------------------------------------------------------
 
-st.sidebar.title("Insider Threat Detection")
-st.sidebar.markdown("**COS700 — Per-User Behavioural Baseline Framework**")
-st.sidebar.markdown("University of Pretoria, 2026")
-st.sidebar.divider()
+PAGES = ["Overview", "Risk Explorer", "Method Comparison", "Evaluation", "Findings", "About"]
 
-page = st.sidebar.radio("Navigation", [
-    "Overview", "Risk Explorer", "Method Comparison", "Evaluation", "About",
-])
+# Lucide icons (lucide.dev, ISC licence), one per page in PAGES order.
+_ICONS = {
+    "shield":            '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+    "Overview":          '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
+    "Risk Explorer":     '<circle cx="10" cy="7" r="4"/><path d="M10.3 15H7a4 4 0 0 0-4 4v2"/><circle cx="17" cy="17" r="3"/><path d="m21 21-1.9-1.9"/>',
+    "Method Comparison": '<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>',
+    "Evaluation":        '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+    "Findings":          '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/>',
+    "About":             '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+}
+
+
+def _svg_uri(svg: str) -> str:
+    return "data:image/svg+xml," + quote(svg)
+
+
+def _icon_uri(name: str) -> str:
+    return _svg_uri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" '
+                    'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + _ICONS[name] + "</svg>")
+
+
+@st.cache_data
+def _network_background() -> str:
+    """
+    @brief A still frame of the presentation's background: employees as a faint
+           network, three of them flagged in amber. Seeded, so it never changes.
+    """
+    rng = random.Random(7)
+    pts = [(rng.uniform(0, 1920), rng.uniform(0, 1080), rng.uniform(.4, 1)) for _ in range(110)]
+    parts = []
+    for i, (x1, y1, z1) in enumerate(pts):
+        for x2, y2, z2 in pts[i + 1:]:
+            d = ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** .5
+            if d < 173:
+                parts.append(f'<line x1="{x1:.0f}" y1="{y1:.0f}" x2="{x2:.0f}" y2="{y2:.0f}" '
+                             f'stroke="#4A7CC7" stroke-opacity="{(1 - d / 173) * .08 * min(z1, z2):.3f}"/>')
+    for x, y, z in pts:
+        parts.append(f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{1.3 + z * 1.2:.1f}" fill="#4A7CC7" fill-opacity="{.28 * z:.2f}"/>')
+    for x, y, _ in rng.sample(pts, 3):
+        parts.append(f'<circle cx="{x:.0f}" cy="{y:.0f}" r="3" fill="#F59E0B" fill-opacity=".55"/>'
+                     f'<circle cx="{x:.0f}" cy="{y:.0f}" r="16" fill="none" stroke="#F59E0B" stroke-opacity=".18"/>')
+    return _svg_uri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" '
+                    'preserveAspectRatio="xMidYMid slice">' + "".join(parts) + "</svg>")
+
+
+# Streamlit renders the page list as a radio group; these rules restyle it as a
+# navigation menu with one icon per page, matched to PAGES by position.
+st.markdown(f"""
+<style>
+    .stApp {{ background-image: url("{_network_background()}"); background-size: cover; background-attachment: fixed; }}
+    header[data-testid="stHeader"] {{ background: transparent; }}
+
+    .nav-brand {{ display: flex; align-items: center; gap: 10px; color: #e6edf3; font-size: 1.05rem; font-weight: 650; }}
+    .nav-brand i {{ width: 22px; height: 22px; background: #4a7cc7;
+                    -webkit-mask: url("{_icon_uri('shield')}") center / contain no-repeat; mask: url("{_icon_uri('shield')}") center / contain no-repeat; }}
+    .nav-meta {{ color: #8b949e; font-size: 0.85rem; margin: 6px 0 22px 32px; }}
+    .nav-eyebrow {{ color: #4a7cc7; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.12em;
+                    text-transform: uppercase; margin: 0 0 8px 2px; }}
+
+    [data-testid="stSidebar"] [role="radiogroup"] {{ gap: 4px; width: 100%; }}
+    [data-testid="stSidebar"] [data-testid="stRadioOption"] {{
+        width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid transparent; margin: 0;
+    }}
+    [data-testid="stSidebar"] [data-testid="stRadioOption"]:hover {{ background: #1c2330; }}
+    [data-testid="stSidebar"] [data-testid="stRadioOption"][data-selected="true"] {{
+        background: #1c2330; border-color: #1565c0;
+    }}
+    [data-testid="stSidebar"] [data-testid="stRadioOption"] > div > div > div:first-child {{
+        width: 18px; height: 18px; margin-right: 10px; border: none; border-radius: 0; background: #8b949e;
+    }}
+    [data-testid="stSidebar"] [data-testid="stRadioOption"] > div > div > div:first-child > div {{ display: none; }}
+    [data-testid="stSidebar"] [data-testid="stRadioOption"][data-selected="true"] > div > div > div:first-child {{ background: #4a7cc7; }}
+    [data-testid="stSidebar"] [data-testid="stRadioOption"] p {{ font-size: 0.95rem; color: #8b949e; }}
+    [data-testid="stSidebar"] [data-testid="stRadioOption"][data-selected="true"] p {{ color: #e6edf3; font-weight: 600; }}
+    {"".join(
+        f'[data-testid="stSidebar"] [data-testid="stRadioOption"]:nth-of-type({i}) > div > div > div:first-child '
+        f'{{ -webkit-mask: url("{_icon_uri(name)}") center / contain no-repeat; mask: url("{_icon_uri(name)}") center / contain no-repeat; }}'
+        for i, name in enumerate(PAGES, 1))}
+</style>
+""", unsafe_allow_html=True)
+
+st.sidebar.markdown(
+    '<div class="nav-brand"><i></i>Insider Threat Detection</div>'
+    '<div class="nav-meta">COS700, University of Pretoria</div>'
+    '<div class="nav-eyebrow">Navigation</div>',
+    unsafe_allow_html=True,
+)
+# ?page=Findings opens a page directly, which makes a page linkable.
+_wanted = st.query_params.get("page", PAGES[0])
+page = st.sidebar.radio("Navigation", PAGES, label_visibility="collapsed",
+                        index=PAGES.index(_wanted) if _wanted in PAGES else 0)
 
 if not _artifacts_exist():
     show_not_trained_error()
 
-daily_df, gt_df, population, peruser, shap_explainer = load_artifacts()
+with st.spinner("Loading trained artifacts…"):
+    daily_df, gt_df, population, peruser, shap_explainer = load_artifacts()
 meta = _load_meta()
 
 if page == "Overview":
@@ -617,5 +843,7 @@ elif page == "Method Comparison":
     page_compare(daily_df, population, peruser)
 elif page == "Evaluation":
     page_evaluate(daily_df, gt_df, population, peruser)
+elif page == "Findings":
+    page_findings()
 elif page == "About":
     page_about(meta)
