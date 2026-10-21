@@ -13,7 +13,6 @@
 \usepackage{multirow}
 \usepackage{tikz}
 \usepackage{pgfplots}
-\usepackage{pdfpages}
 \usepackage{booktabs}
 \usepackage{array}
 \pgfplotsset{compat=1.18}
@@ -56,21 +55,17 @@
 \renewcommand{\UrlBreaks}{\do\/\do\-\do\_}
 \emergencystretch=1.5em
 
-% The student number is printed only when report/private.tex defines it, as
-% \newcommand{\studentnumber}{...}. That file is not committed.
-\IfFileExists{private.tex}{\input{private.tex}}{}
-
 \title
 {
    \includegraphics[width=12cm]{up-logo.jpg} \\
    \vspace{2cm}
    \textbf{COS700 Research Report} \\ \vspace{0.5cm}
    \textbf{A Per-User Behavioural Baseline Framework for Insider Threat Detection in Resource-Constrained Environments} \\ \vspace{0.5cm}
-   \ifdefined\studentnumber \textbf{Student number:} \studentnumber \\ \fi \vspace{0.5cm}
+   \vspace{0.5cm}
    \textbf{Supervisor(s)}: \\ Prof. Jan Eloff
 }
 
-\author{Selepe Sello}
+\author{Selepe Sello (uXXXXXXXX)}
 
 \date{October 2026}
 
@@ -78,25 +73,13 @@
 
 \maketitle
 
-% The completed Plagiarism and Generative AI declaration goes here, exactly as
-% the reference report includes it. Save the signed form as declaration.pdf
-% next to this file.
-\newpage
-\IfFileExists{declaration.pdf}{%
-   \includepdf[pages=-]{declaration.pdf}%
-}{%
-   \section*{Plagiarism and Generative AI Declaration}
-   \textit{Placeholder: save the completed and signed declaration form as \texttt{declaration.pdf} in the report folder and rebuild; it will be included here.}
-   \newpage
-}
-
 \newpage
 \linespread{1.241}
 
 \section*{Abstract}
 Insider threats are slow to detect and costly: in 2024, breaches by malicious insiders took an average of 287 days to identify and contain. Lightweight detectors that score every employee against one organisation-wide baseline fail in two directions at once. Legitimately busy users such as IT administrators fill the alert queue, while an insider whose behaviour changes slowly, within population norms, is never surfaced. This report designs, implements and evaluates a lightweight per-user behavioural baseline framework. It profiles each user from their own history, falls back to a role-group profile when history is short, and scores each day's deviation vector with a single unsupervised anomaly model.
 
-The framework was evaluated on the full CERT Insider Threat Test Dataset r6.2 (4\,000 users, 135 million log events) at an alert budget of 0.1\% of user-days. It found 21 of 38 low-and-slow malicious days and both test-window insiders, against 8 days and one insider for the SMOTE-balanced Random Forest that represents current practice. It spent 3.5\% of its alerts on IT administrators instead of 22.6\%, and trained in 8 seconds instead of 447. The same anomaly algorithm with a population reference found 3 days, which isolates the gain to the per-user reference frame. Across ten seeds the framework found 20 or 21 of the 38 days every time, and its advantages in recall and administrator alert share over every population detector held in all ten (Wilcoxon signed-rank, Holm-adjusted $p = 0.035$). Follow-up studies show that a personal baseline is stable after about 30 days of history and useful after about 60. Its explanations name a feature the insider actually used as the top reason on 95\% of malicious days, against 50\% for the Random Forest's SHAP explanations read at their best. The test window holds only two insiders and the data is synthetic, and the report states these limits explicitly.
+The framework was evaluated on the full CERT Insider Threat Test Dataset r6.2 (4\,000 users, 135 million log events) at an alert budget of 0.1\% of user-days. It found 21 of 38 low-and-slow malicious days and both test-window insiders, against 8 days and one insider for the SMOTE-balanced Random Forest that represents current practice. It spent 3.5\% of its alerts on IT administrators instead of 22.6\%, and trained in 8 seconds instead of 447. The same anomaly algorithm with a population reference found 3 days, which isolates the gain to the per-user reference frame. Across ten seeds the framework found 20 or 21 of the 38 days every time, and its advantages in recall and administrator alert share over every population detector held in all ten (Wilcoxon signed-rank, Holm-adjusted $p = 0.035$). Follow-up studies show that a personal baseline is stable after about 30 days of history and useful after about 60. Its explanations name a feature the insider actually used as the top reason on 95\% of malicious days, against 50\% for the Random Forest's SHAP explanations read at their best. The test window holds only two insiders and the data is synthetic, and both limits are discussed alongside the results.
 
 \section*{Keywords:}
 insider threat detection, behavioural anomaly detection, per-user baseline, user and entity behaviour analytics, role-aware normalisation, alert fatigue, CERT r6.2, one-class SVM, explainability, resource-constrained deployment.
@@ -126,7 +109,7 @@ This report designs, implements and evaluates such a framework. Each user's norm
    \item A report of the negative and unexpected results alongside the positive ones: a volume floor that beats most published-style baselines, two supervised classifiers that fail outright, and design choices that recreate the very failure the research set out to remove.
 \end{enumerate}
 
-\paragraph{Scope and findings.} The framework outperforms the population Random Forest on every comparison the benchmark supports. It finds 2.6 times as many low-and-slow malicious days, surfaces both test-window insiders, and spends a sixth as much of the alert queue on administrators. It also trains 57 times faster. A same-algorithm control attributes these gains to the per-user reference frame rather than to the anomaly model. These differences held in every one of ten seeds. The follow-up studies add two practical findings. A personal baseline needs about 60 days of history before it beats the role baseline, so the proposal's 14-day cold-start threshold is too low. And the framework's explanations name what the insider actually did on 95\% of malicious days, against at most 50\% for the Random Forest's SHAP values; read by absolute value, as this project's dashboard first showed them, the SHAP explanations do worse than random. The evidence has clear limits. CERT r6.2 is synthetic, its chronological test window contains only two insiders (both low-and-slow), and the anomaly algorithm was selected on data that contains them. Section~\ref{sec:threats} discusses each limit and what it does and does not undermine.
+\paragraph{Scope and findings.} The framework outperforms the population Random Forest on every comparison the benchmark supports. It finds 2.6 times as many low-and-slow malicious days, surfaces both test-window insiders, and spends a sixth as much of the alert queue on administrators. It also trains 57 times faster. A same-algorithm control attributes these gains to the per-user reference frame rather than to the anomaly model. These differences held in every one of ten seeds. The follow-up studies add two practical findings. A personal baseline needs about 60 days of history before it beats the role baseline, so the proposal's 14-day cold-start threshold is too low. And the framework's explanations name what the insider actually did on 95\% of malicious days, against at most 50\% for the Random Forest's SHAP values; read by absolute value, the SHAP explanations do worse than random. The evidence has clear limits. CERT r6.2 is synthetic, its chronological test window contains only two insiders (both low-and-slow), and the anomaly algorithm was selected on data that contains them. Section~\ref{sec:threats} discusses each limit and what it does and does not undermine.
 
 % ===========================================================================
 \section{Problem Statement}
@@ -149,7 +132,7 @@ The central hypothesis is that scoring each user-day as a deviation from the use
 
 \paragraph{Scope.} The research uses behavioural features derived from organisational log files only. It excludes packet-level network traffic, the content of email and web pages, psychometric data, and real-time streaming deployment. The evaluation uses a single public benchmark, CERT r6.2. It assumes that logs are available as structured exports and that role assignments are recorded. Role misclassification and deliberate manipulation of role labels are out of scope.
 
-\paragraph{Deviations from the proposal.} Four changes were forced by the data or by what the experiments revealed, and are stated here rather than buried:
+\paragraph{Deviations from the proposal.} Four changes were forced by the data or by what the experiments revealed:
 \begin{itemize}
    \item \textbf{Dataset size and log types.} The proposal described r6.2 as 1\,000 users over 18 months with print logs. The release actually contains 4\,000 users over 516 days, and has no print log. It does have logon, removable-device, file, web (HTTP) and email logs, all of which are used, together with monthly LDAP snapshots for roles. Email and web \emph{content} is not used, only metadata such as counts, recipients, sizes and upload actions.
    \item \textbf{Operating point.} The proposal's metrics (recall, high-privilege false positive rate, F1, ROC-AUC) are all reported, but at a fixed \emph{alert budget} rather than a fixed threshold, and with average precision as the primary ranking metric. Section~\ref{sec:evaluation_protocol} explains why the benchmark forces this.
@@ -745,7 +728,7 @@ Building 4\,000 personal profiles, 46 role profiles and the population profile f
 \label{sec:sq5}
 A user study of investigation time was outside the project's reach. SQ5 is therefore answered with two measurable proxies. The first is queue depth: how far down the ranked queue an analyst must read before reaching each insider (Section~\ref{sec:sq1}). The second, reported here, is whether the reason each system gives for a malicious day names what the insider actually did.
 
-Figure~\ref{fig:explain} scores the top three features of each explanation against the answer key's ground truth for all 38 malicious test days. SHAP is scored in two readings: ranked by absolute contribution, as the dashboard first displayed it, and restricted to features that push towards an alert. The framework's explanation names a feature the malicious events actually changed as its top reason on 94.7\% of days, against a random-explanation rate of 29.6\%. With the same method but a population reference the rate is 52.6\%, and against the role group 39.5\%. The explanation method is identical in all three; only the reference frame differs. On the 21 malicious days the framework actually flagged, its top-named reason is correct every time.
+Figure~\ref{fig:explain} scores the top three features of each explanation against the answer key's ground truth for all 38 malicious test days. SHAP is scored in two readings: ranked by absolute contribution, and restricted to features that push towards an alert. The framework's explanation names a feature the malicious events actually changed as its top reason on 94.7\% of days, against a random-explanation rate of 29.6\%. With the same method but a population reference the rate is 52.6\%, and against the role group 39.5\%. The explanation method is identical in all three; only the reference frame differs. On the 21 malicious days the framework actually flagged, its top-named reason is correct every time.
 
 \begin{figure}[htbp]
 \centering
@@ -754,13 +737,13 @@ Figure~\ref{fig:explain} scores the top three features of each explanation again
 \label{fig:explain}
 \end{figure}
 
-How the Random Forest's SHAP explanations perform depends on how they are read. Ranked by absolute contribution, they name a relevant feature first on only 2.6\% of malicious days, far below the 29.6\% of a random explanation, and on none of the 8 days the forest itself flagged. The forest assigns most low-and-slow days a probability near zero, so its largest SHAP values are reasons \emph{against} an alert. Reading only the features that push towards an alert raises the rate to 50.0\% over all malicious days and to 87.5\% on the forest's own 8 alerts. When the forest does raise an alert, it can usually say why, provided its explanation is read for positive contributions. The study changed the dashboard accordingly.
+How the Random Forest's SHAP explanations perform depends on how they are read. Ranked by absolute contribution, they name a relevant feature first on only 2.6\% of malicious days, far below the 29.6\% of a random explanation, and on none of the 8 days the forest itself flagged. The forest assigns most low-and-slow days a probability near zero, so its largest SHAP values are reasons \emph{against} an alert. Reading only the features that push towards an alert raises the rate to 50.0\% over all malicious days and to 87.5\% on the forest's own 8 alerts. When the forest does raise an alert, it can usually say why, provided its explanation is read for positive contributions. The dashboard therefore shows only the positive contributions.
 
 Two differences from the framework remain. The first is coverage. The framework raised 21 correct alerts and its top-named reason was right for all 21, while the forest raised 8. Across all 38 malicious days, even the positive reading of SHAP includes a relevant feature in its top three less often than a random explanation would (52.6\% against 62.1\%). The forest learned the malicious class from the burst insiders in the training window, and frames every day in their terms: web uploads, device connections and removable-media writes. The second is context. A SHAP value is a contribution to a probability and says nothing about what is normal for the person. A deviation says what the value is today, what it usually is for this user, and how far apart the two are.
 
 The insider-level breakdown mirrors the detection result. On CDE1846's days, which are extreme for anyone, every z-score explanation is correct. On CMP2946's, the framework's top reason is correct 93\% of the time, against 38\% with a population reference and 21\% with a role reference. Personal context matters for exactly the behaviour that is unusual only for the person.
 
-Table~\ref{tab:case} shows what this means at the analyst's desk. On CMP2946's highest-scored malicious day, the framework reports that web requests rose to 173 against a usual 162, eleven standard deviations above this user's own normal. To the population this is a 1.8-standard-deviation day, unremarkable among 4\,000 users. On CDE1846's, it reports eight file operations against a usual zero (12 standard deviations), which the population reference rates at 1.4. That is the trace of the insider logging on to other users' machines to search for files, alongside the emailed attachments that every reference frame sees. The forest flagged neither day, and its SHAP values for both are small and negative: they explain why it did not alert.
+Table~\ref{tab:case} shows what this means at the analyst's desk. On CMP2946's highest-scored malicious day, the framework reports that web requests rose to 173, from a user who made exactly 162 on every training day. With a spread of zero, floored at one, that is a deviation of 11. To the population this is a 1.8-standard-deviation day, unremarkable among 4\,000 users. On CDE1846's, it reports eight file operations against a usual zero (12 standard deviations), which the population reference rates at 1.4. That is the trace of the insider logging on to other users' machines to search for files, alongside the emailed attachments that every reference frame sees. The forest flagged neither day, and its SHAP values for both are small and negative: they explain why it did not alert.
 
 \begin{table}[htbp]
 \centering
