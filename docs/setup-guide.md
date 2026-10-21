@@ -8,12 +8,14 @@ This guide covers environment setup, dataset preparation, and running the full p
 | ---------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
 | **OS**     | Linux, macOS, or Windows (WSL2 recommended on Windows) | Linux                                                                                     |
 | **Python** | 3.10                                                   | 3.11+                                                                                     |
-| **RAM**    | 8 GB (synthetic default / small real subsets)          | 16 GB+ (full r6.2, all users — the raw logs are streamed, never loaded)                    |
-| **Disk**   | ~2 GB (synthetic data + artifacts)                     | ~120 GB to extract r6.2, or ~25 GB if you aggregate straight from the archive              |
-| **CPU**    | Any dual-core x86_64/ARM64                             | Multi-core recommended — `RandomForestClassifier` and `IsolationForest` use `n_jobs=-1`   |
+| **RAM**    | 8 GB — laptop path peaks at 1.1 GB; full-population steps at 2.8 GB (one optional experiment: 5.5 GB) | 16 GB, to run several steps side by side |
+| **Disk**   | ~30 GB: logs left compressed (`dataset.py --logs-from-archive`) | ~125 GB: logs extracted, so aggregation runs in parallel                   |
+| **CPU**    | 2 cores / 4 threads (Intel Core i3 or similar)          | 8+ cores — `RandomForestClassifier` and `IsolationForest` use `n_jobs=-1`  |
 | **GPU**    | Not required                                           | Not used — the framework is explicitly designed to run on consumer hardware without a GPU |
 
 No internet access is required after the (optional) manual dataset download — training and the dashboard run entirely locally.
+
+The [README](../README.md#hardware) gives the measured peak memory and time of every command, and the default laptop path.
 
 ### Python dependencies
 
@@ -65,9 +67,16 @@ Either way, this populates `data/raw/` with the same file layout, so every later
 Extracted, the real r6.2 logs are ~93 GB — `http.csv` alone is 84 GB. They are never loaded into memory. Instead one streaming pass reduces them to a per-`(user, day)` table roughly 10,800x smaller, and everything downstream trains off that:
 
 ```bash
-python script/aggregate.py               # 93.2 GB -> 8.6 MB, ~3.3 min on 12 cores
-python script/prepare.py                 # -> dataset.parquet (8.7 MB), ~3 s
+python script/aggregate.py               # 93.2 GB -> 8.6 MB: 2.8 GB RAM, ~15 min on 4 threads, ~3.3 min on 12 cores
+python script/prepare.py                 # -> dataset.parquet (8.7 MB), 0.7 GB RAM, ~3 s
 ```
+
+On a laptop with little free disk, ingest with `python script/dataset.py --logs-from-archive`
+instead: only the LDAP snapshots and the answer key are extracted, and
+`aggregate.py` streams the logs from `r6.2.tar.bz2` (single-threaded, a one-off
+of one to three hours). `python script/aggregate.py --cohort 400` followed by
+`python script/prepare.py --cohort 400` builds the 400-user dataset that way in
+about 1 GB of RAM, without ever building the full table.
 
 `aggregate.py` reads the five big CSVs; `prepare.py` reads `ldap/` and `answers/`
 and attaches org context, labels and the train/test split. The result,

@@ -147,7 +147,16 @@ one feature that cannot be summed across shards. Shards return per-`(user, day)`
 sets of CRC-32 host ids, which the parent unions before taking cardinalities —
 no coordination between processes required.
 
+**Host ids are kept packed.** Across 1.39 M user-days the parent holds 33.5 M
+host ids. Kept as Python sets of ints they took ~4.2 GB, and the whole run
+peaked at 5.7 GB on 4 workers, too close to the limit of an 8 GB laptop. The
+parent now stores each user-day's ids as a sorted, packed `uint32` array (4
+bytes per id) and unions them in that form, which brings the peak to 2.8 GB.
+The archive path streams its rows in batches through the same merge, so it
+stays packed too. The output is byte-for-byte identical to the set-based run.
+
 Measured on 14 cores / 12 workers: **93.2 GB in 3.3 minutes** (~470 MB/s).
+On 4 threads: 15 minutes, 2.8 GB peak.
 
 ## Subsets (cohorts)
 

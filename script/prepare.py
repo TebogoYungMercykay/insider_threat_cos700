@@ -68,6 +68,14 @@ def main() -> int:
     from src.cohort import build_cohort
 
     source = args.source or USERDAY_TABLE
+    # The laptop path (aggregate.py --cohort N) never builds the full table.
+    # Cohort selection is deterministic, so preparing from the cohort's own
+    # table gives the same dataset as slicing the full one.
+    if args.cohort and args.source is None and not os.path.exists(USERDAY_TABLE):
+        cohort_table = os.path.join(ARTIFACTS_DIR,
+                                    f"userday_cohort{args.cohort}_seed{args.seed}.parquet")
+        if os.path.exists(cohort_table):
+            source = cohort_table
     if args.out is None:
         args.out = (os.path.join(ARTIFACTS_DIR,
                                  f"dataset_cohort{args.cohort}_seed{args.seed}.parquet")
@@ -84,7 +92,7 @@ def main() -> int:
         warn(f"No aggregated table at {os.path.relpath(source)}.")
         print()
         print("  Reduce the raw logs once first:")
-        print(f"      {amber('python script/aggregate.py')}")
+        print(f"      {amber('python script/aggregate.py' + (f' --cohort {args.cohort}' if args.cohort else ''))}")
         print()
         return 1
 
