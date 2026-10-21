@@ -1,0 +1,30 @@
+# Dashboard theme, matching the palette in src/colors.py.
+
+[theme]
+base = "dark"
+primaryColor = "#1565C0"
+backgroundColor = "#0D1117"
+secondaryBackgroundColor = "#161B22"
+textColor = "#E6EDF3"
+borderColor = "#1E2D45"
+showWidgetBorder = true
+baseRadius = "8px"
+font = "Inter, sans-serif"
+codeFont = "'JetBrains Mono', monospace"
+headingFontWeights = 650
+metricValueFontWeight = 700
+blueColor = "#1565C0"
+redColor = "#D32F2F"
+orangeColor = "#F59E0B"
+greenColor = "#2E7D32"
+linkColor = "#4A7CC7"
+
+[theme.sidebar]
+backgroundColor = "#161B22"
+secondaryBackgroundColor = "#1C2330"
+borderColor = "#1E2D45"
+showSidebarBorder = true
+
+[client]
+# Hides the developer toolbar (Deploy, Rerun) from the dashboard.
+toolbarMode = "viewer"

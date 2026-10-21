@@ -13,6 +13,8 @@ import os
 import sys
 import time
 import json
+import random
+from urllib.parse import quote
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -51,63 +53,62 @@ st.set_page_config(page_title="Insider Threat — Per-User Baseline", layout="wi
 
 st.markdown(f"""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap');
-    body, .stApp {{ font-family: 'IBM Plex Sans', sans-serif; }}
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+    body, .stApp {{ font-family: 'Inter', sans-serif; }}
     code, .mono  {{ font-family: 'JetBrains Mono', monospace; }}
+    h1, h2, h3   {{ letter-spacing: -0.015em; }}
 
     .section-header {{
-        color: {COLOR_BLUE}; font-size: 1.05rem; font-weight: 600;
-        border-bottom: 2px solid {COLOR_BLUE}; padding-bottom: 4px; margin-bottom: 12px;
+        color: #4a7cc7; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.12em;
+        text-transform: uppercase; margin: 28px 0 12px 0;
     }}
-    .info-box {{
-        background-color: {COLOR_BG_BLUE}; border-left: 4px solid {COLOR_BLUE};
-        padding: 12px 16px; border-radius: 4px; margin-bottom: 12px;
+    .info-box, .warning-box, .danger-box, .success-box {{
+        background-color: #161b22; border: 1px solid #1e2d45; border-radius: 12px;
+        padding: 16px 20px; margin-bottom: 14px; line-height: 1.6;
     }}
-    .warning-box {{
-        background-color: {COLOR_BG_AMBER}; border-left: 4px solid {COLOR_AMBER};
-        padding: 12px 16px; border-radius: 4px; margin-bottom: 12px;
+    .warning-box {{ border-color: {COLOR_AMBER}; }}
+    .danger-box  {{ border-color: {COLOR_RED}; }}
+    .success-box {{ border-color: {COLOR_GREEN}; }}
+    div[data-testid="stMetric"] {{
+        background-color: #161b22; border: 1px solid #1e2d45; border-radius: 12px; padding: 16px 20px;
     }}
-    .danger-box {{
-        background-color: {COLOR_BG_RED}; border-left: 4px solid {COLOR_RED};
-        padding: 12px 16px; border-radius: 4px; margin-bottom: 12px;
-    }}
-    .success-box {{
-        background-color: {COLOR_BG_GREEN}; border-left: 4px solid {COLOR_GREEN};
-        padding: 12px 16px; border-radius: 4px; margin-bottom: 12px;
-    }}
-    div[data-testid="stMetricValue"] {{ color: {COLOR_BLUE}; font-weight: 700; }}
+    div[data-testid="stMetricLabel"] {{ color: #8b949e; }}
+    div[data-testid="stMetricValue"] {{ color: #e6edf3; font-weight: 700; }}
 
     .result-card {{
-        border: 1px solid rgba(21,101,192,0.3); border-radius: 6px;
-        padding: 14px 16px; margin-bottom: 10px; background-color: rgba(21,101,192,0.05);
+        border: 1px solid #1e2d45; border-radius: 12px;
+        padding: 16px 20px; margin-bottom: 10px; background-color: #161b22;
     }}
     .result-rank {{
-        color: {COLOR_BLUE}; font-size: 0.78rem; font-weight: 700;
-        text-transform: uppercase; letter-spacing: 0.06em;
+        color: #e6edf3; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; font-weight: 700;
     }}
     .cat-tag {{
-        display: inline-block; background: rgba(21,101,192,0.2); color: {COLOR_BLUE};
-        font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 3px; margin-left: 8px;
+        display: inline-block; background: #1c2330; color: #4a7cc7; border: 1px solid #2a3a5a;
+        font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 6px; margin-left: 8px;
     }}
     .hp-tag {{
-        display: inline-block; background: rgba(245,158,11,0.25); color: {COLOR_AMBER};
-        font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 3px; margin-left: 6px;
+        display: inline-block; border: 1px solid {COLOR_AMBER}; color: {COLOR_AMBER};
+        font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 6px; margin-left: 6px;
+    }}
+    .mal-tag {{
+        display: inline-block; background: {COLOR_AMBER}; color: #1a1203;
+        font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; margin-left: 6px;
     }}
     .banner-wrap {{
-        background: #0d1117; border: 1px solid {COLOR_BLUE}; border-radius: 8px;
-        padding: 28px 32px 20px 32px; margin-bottom: 24px; overflow: hidden;
+        background: #161b22; border: 1px solid #1e2d45; border-radius: 12px;
+        padding: 28px 32px 24px 32px; margin-bottom: 24px; overflow: hidden;
     }}
-    .banner-title {{ color: #fff; font-size: 1.15rem; font-weight: 700; margin: 0 0 4px 0; }}
-    .banner-subtitle {{ color: #8b949e; font-size: 0.85rem; margin: 0; }}
+    .banner-title {{ color: #e6edf3; font-size: 1.6rem; font-weight: 700; letter-spacing: -0.015em; margin: 0 0 4px 0; }}
+    .banner-subtitle {{ color: #8b949e; font-size: 0.9rem; margin: 0; }}
     .banner-tagline {{
-        font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #4a7cc7;
-        margin: 8px 0 14px 0; letter-spacing: 0.05em;
+        font-size: 0.78rem; font-weight: 600; color: #4a7cc7;
+        margin: 8px 0 14px 0; letter-spacing: 0.12em; text-transform: uppercase;
     }}
-    .banner-divider {{ border: none; border-top: 1px solid rgba(21,101,192,0.35); margin: 14px 0; }}
+    .banner-divider {{ border: none; border-top: 1px solid #1e2d45; margin: 14px 0; }}
     .banner-badge {{
-        display: inline-block; margin-top: 14px; padding: 3px 12px; border: 1px solid {COLOR_BLUE};
-        border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
-        font-weight: 600; letter-spacing: 0.1em; color: {COLOR_BLUE};
+        display: inline-block; margin-top: 14px; padding: 3px 10px; border: 1px solid #2a3a5a;
+        border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
+        font-weight: 500; color: #8b949e;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -176,10 +177,10 @@ def _dark_fig(w: float, h: float):
     fig, ax = plt.subplots(figsize=(w, h))
     ax.set_facecolor("#0d1117")
     fig.patch.set_facecolor("#0d1117")
-    ax.tick_params(colors="white", labelsize=8)
-    ax.xaxis.label.set_color("white")
-    ax.yaxis.label.set_color("white")
-    ax.title.set_color("white")
+    ax.tick_params(colors="#8b949e", labelsize=8)
+    ax.xaxis.label.set_color("#8b949e")
+    ax.yaxis.label.set_color("#8b949e")
+    ax.title.set_color("#e6edf3")
     for spine in ax.spines.values():
         spine.set_edgecolor("#2a3a5a")
     return fig, ax
@@ -232,7 +233,7 @@ def page_overview(daily_df, meta: dict) -> None:
         ax.text(bar.get_width() + counts.max() * 0.01, bar.get_y() + bar.get_height() / 2,
                 f"{val:,}", va="center", color="white", fontsize=8, fontfamily="monospace")
     ax.set_xlabel("Users")
-    ax.grid(axis="x", color="#1e2d45", linewidth=0.5, linestyle="--")
+    ax.grid(axis="x", color="#1e2d45", linewidth=0.5)
     ax.set_axisbelow(True)
     fig.tight_layout()
     st.pyplot(fig, width="stretch")
@@ -322,7 +323,7 @@ def page_risk_explorer(daily_df, population, peruser, shap_explainer) -> None:
     ax.set_ylabel("Risk score")
     ax.set_title(f"Risk score over time — {user}", fontsize=10)
     ax.legend(facecolor="#0d1117", labelcolor="white", fontsize=8)
-    ax.grid(color="#1e2d45", linewidth=0.5, linestyle="--")
+    ax.grid(color="#1e2d45", linewidth=0.5)
     fig.tight_layout()
     st.pyplot(fig, width="stretch")
     plt.close(fig)
@@ -368,7 +369,7 @@ def page_risk_explorer(daily_df, population, peruser, shap_explainer) -> None:
         top["top_features"] = lines
 
     for _, row in top.iterrows():
-        mal_flag = ' <span class="hp-tag" style="background:rgba(211,47,47,0.25);color:#ff6b6b;">MALICIOUS DAY</span>' if row["is_malicious"] else ""
+        mal_flag = ' <span class="mal-tag">MALICIOUS DAY</span>' if row["is_malicious"] else ""
         st.markdown(f"""
         <div class="result-card">
             <span class="result-rank">{row['date'].strftime('%Y-%m-%d')}</span>
@@ -565,7 +566,7 @@ def page_evaluate(daily_df, gt_df, population, peruser) -> None:
             ax.set_yticklabels(role_fpr_df.index)
             ax.set_xlabel("False Positive Rate")
             ax.legend(facecolor="#0d1117", labelcolor="white", fontsize=8)
-            ax.grid(axis="x", color="#1e2d45", linewidth=0.5, linestyle="--")
+            ax.grid(axis="x", color="#1e2d45", linewidth=0.5)
             fig.tight_layout()
             st.pyplot(fig, width="stretch")
             plt.close(fig)
@@ -733,15 +734,98 @@ def page_about(meta: dict) -> None:
 # Navigation
 # ---------------------------------------------------------------------------
 
-st.sidebar.title("Insider Threat Detection")
-st.sidebar.markdown("**COS700 — Per-User Behavioural Baseline Framework**")
-st.sidebar.markdown("University of Pretoria, 2026")
-st.sidebar.divider()
-
 PAGES = ["Overview", "Risk Explorer", "Method Comparison", "Evaluation", "Findings", "About"]
+
+# Lucide icons (lucide.dev, ISC licence), one per page in PAGES order.
+_ICONS = {
+    "shield":            '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+    "Overview":          '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
+    "Risk Explorer":     '<circle cx="10" cy="7" r="4"/><path d="M10.3 15H7a4 4 0 0 0-4 4v2"/><circle cx="17" cy="17" r="3"/><path d="m21 21-1.9-1.9"/>',
+    "Method Comparison": '<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>',
+    "Evaluation":        '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+    "Findings":          '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/>',
+    "About":             '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+}
+
+
+def _svg_uri(svg: str) -> str:
+    return "data:image/svg+xml," + quote(svg)
+
+
+def _icon_uri(name: str) -> str:
+    return _svg_uri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" '
+                    'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + _ICONS[name] + "</svg>")
+
+
+@st.cache_data
+def _network_background() -> str:
+    """
+    @brief A still frame of the presentation's background: employees as a faint
+           network, three of them flagged in amber. Seeded, so it never changes.
+    """
+    rng = random.Random(7)
+    pts = [(rng.uniform(0, 1920), rng.uniform(0, 1080), rng.uniform(.4, 1)) for _ in range(110)]
+    parts = []
+    for i, (x1, y1, z1) in enumerate(pts):
+        for x2, y2, z2 in pts[i + 1:]:
+            d = ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** .5
+            if d < 173:
+                parts.append(f'<line x1="{x1:.0f}" y1="{y1:.0f}" x2="{x2:.0f}" y2="{y2:.0f}" '
+                             f'stroke="#4A7CC7" stroke-opacity="{(1 - d / 173) * .08 * min(z1, z2):.3f}"/>')
+    for x, y, z in pts:
+        parts.append(f'<circle cx="{x:.0f}" cy="{y:.0f}" r="{1.3 + z * 1.2:.1f}" fill="#4A7CC7" fill-opacity="{.28 * z:.2f}"/>')
+    for x, y, _ in rng.sample(pts, 3):
+        parts.append(f'<circle cx="{x:.0f}" cy="{y:.0f}" r="3" fill="#F59E0B" fill-opacity=".55"/>'
+                     f'<circle cx="{x:.0f}" cy="{y:.0f}" r="16" fill="none" stroke="#F59E0B" stroke-opacity=".18"/>')
+    return _svg_uri('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" '
+                    'preserveAspectRatio="xMidYMid slice">' + "".join(parts) + "</svg>")
+
+
+# Streamlit renders the page list as a radio group; these rules restyle it as a
+# navigation menu with one icon per page, matched to PAGES by position.
+st.markdown(f"""
+<style>
+    .stApp {{ background-image: url("{_network_background()}"); background-size: cover; background-attachment: fixed; }}
+    header[data-testid="stHeader"] {{ background: transparent; }}
+
+    .nav-brand {{ display: flex; align-items: center; gap: 10px; color: #e6edf3; font-size: 1.05rem; font-weight: 650; }}
+    .nav-brand i {{ width: 22px; height: 22px; background: #4a7cc7;
+                    -webkit-mask: url("{_icon_uri('shield')}") center / contain no-repeat; mask: url("{_icon_uri('shield')}") center / contain no-repeat; }}
+    .nav-meta {{ color: #8b949e; font-size: 0.85rem; margin: 6px 0 22px 32px; }}
+    .nav-eyebrow {{ color: #4a7cc7; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.12em;
+                    text-transform: uppercase; margin: 0 0 8px 2px; }}
+
+    [data-testid="stSidebar"] [role="radiogroup"] {{ gap: 4px; width: 100%; }}
+    [data-testid="stSidebar"] [data-testid="stRadioOption"] {{
+        width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid transparent; margin: 0;
+    }}
+    [data-testid="stSidebar"] [data-testid="stRadioOption"]:hover {{ background: #1c2330; }}
+    [data-testid="stSidebar"] [data-testid="stRadioOption"][data-selected="true"] {{
+        background: #1c2330; border-color: #1565c0;
+    }}
+    [data-testid="stSidebar"] [data-testid="stRadioOption"] > div > div > div:first-child {{
+        width: 18px; height: 18px; margin-right: 10px; border: none; border-radius: 0; background: #8b949e;
+    }}
+    [data-testid="stSidebar"] [data-testid="stRadioOption"] > div > div > div:first-child > div {{ display: none; }}
+    [data-testid="stSidebar"] [data-testid="stRadioOption"][data-selected="true"] > div > div > div:first-child {{ background: #4a7cc7; }}
+    [data-testid="stSidebar"] [data-testid="stRadioOption"] p {{ font-size: 0.95rem; color: #8b949e; }}
+    [data-testid="stSidebar"] [data-testid="stRadioOption"][data-selected="true"] p {{ color: #e6edf3; font-weight: 600; }}
+    {"".join(
+        f'[data-testid="stSidebar"] [data-testid="stRadioOption"]:nth-of-type({i}) > div > div > div:first-child '
+        f'{{ -webkit-mask: url("{_icon_uri(name)}") center / contain no-repeat; mask: url("{_icon_uri(name)}") center / contain no-repeat; }}'
+        for i, name in enumerate(PAGES, 1))}
+</style>
+""", unsafe_allow_html=True)
+
+st.sidebar.markdown(
+    '<div class="nav-brand"><i></i>Insider Threat Detection</div>'
+    '<div class="nav-meta">COS700 · University of Pretoria</div>'
+    '<div class="nav-eyebrow">Navigation</div>',
+    unsafe_allow_html=True,
+)
 # ?page=Findings opens a page directly, which makes a page linkable.
 _wanted = st.query_params.get("page", PAGES[0])
-page = st.sidebar.radio("Navigation", PAGES,
+page = st.sidebar.radio("Navigation", PAGES, label_visibility="collapsed",
                         index=PAGES.index(_wanted) if _wanted in PAGES else 0)
 
 if not _artifacts_exist():
