@@ -12,7 +12,7 @@ Normal order: `dataset.py` -> `aggregate.py` -> `prepare.py`, then `train.py`
 
 ## dataset.py
 
-This script ingests the official CERT Insider Threat Test Dataset (r6.2) into `data/raw/`. It only works with the real dataset — there is no synthetic or mock data mode, so it exits with an error rather than generating anything if the required archives aren't present.
+This script ingests the official CERT Insider Threat Test Dataset (r6.2) into `data/raw/`. It only works with the real dataset. There is no synthetic or mock data mode, so it exits with an error rather than generating anything if the required archives aren't present.
 
 ## Quick start
 

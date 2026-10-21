@@ -48,7 +48,7 @@ _RESET, _BOLD, _DIM = "\033[0m", "\033[1m", "\033[2m"
 
 def _header() -> None:
     _divider("═", 70)
-    print(blue(_BOLD + "  COS700 — Per-User Behavioural Baseline Framework" + _RESET))
+    print(blue(_BOLD + "  COS700, Per-User Behavioural Baseline Framework" + _RESET))
     _divider("═", 70)
     print()
 
@@ -248,7 +248,7 @@ def train(
             with Heartbeat("SMOTE resampling"):
                 X_bal, y_bal = sm.fit_resample(X, y)
         else:
-            _warn("Fewer than 2 positive training rows — skipping SMOTE.")
+            _warn("Fewer than 2 positive training rows, skipping SMOTE.")
             X_bal, y_bal = X, y
 
         _kv("Positive rows before SMOTE", n_pos)
@@ -325,7 +325,7 @@ def train(
                 shap_ok = True
                 _mark_done(state, "step4", S4_FP, S4_FILES)
             except Exception as exc:
-                _err(f"SHAP fitting failed — {exc}")
+                _err(f"SHAP fitting failed, {exc}")
                 _warn("App will fall back to feature-importance explanations only.")
 
     # Step 5: Metadata manifest (always refreshed)
@@ -377,7 +377,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description=(
             "Train the Per-User Behavioural Baseline Framework.\n"
-            "Each step is independently cached — only changed steps re-run."
+            "Each step is independently cached, only changed steps re-run."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )

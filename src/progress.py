@@ -19,7 +19,7 @@
 #
 #   - substep(label)
 #         A context manager for a short, named sub-operation inside a step
-#         (e.g. "loading logon.csv") — prints the label immediately (so the
+#         (e.g. "loading logon.csv"), prints the label immediately (so the
 #         person sees it start) and appends elapsed time + an optional
 #         detail string when it finishes.
 #
@@ -27,7 +27,7 @@
 #         A context manager for a blocking call whose duration can't be
 #         measured incrementally (e.g. a scikit-learn .fit() call). Prints a
 #         "still running (Ns elapsed)" line on a background thread every few
-#         seconds *only if* the call actually runs long enough to need it —
+#         seconds *only if* the call actually runs long enough to need it,
 #         fast calls finish before the first tick and print nothing extra.
 ##
 
@@ -105,7 +105,7 @@ def elapsed_str(t0: float) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Progress — live bar for operations with a known total
+# Progress, live bar for operations with a known total
 # ---------------------------------------------------------------------------
 
 class Progress:
@@ -118,7 +118,7 @@ class Progress:
     throttled to avoid spamming fast operations. On non-interactive output
     (redirected to a file/pipe, e.g. inside CI logs), carriage returns don't
     redraw, so instead of time-throttling it prints one line per 10%
-    milestone crossed — visible progress without flooding the log.
+    milestone crossed, visible progress without flooding the log.
     """
 
     def __init__(self, label: str, total: int, unit: str = "bytes"):
@@ -182,7 +182,7 @@ class Progress:
 
 
 # ---------------------------------------------------------------------------
-# substep — named sub-operation with a start message and an elapsed summary
+# substep, named sub-operation with a start message and an elapsed summary
 # ---------------------------------------------------------------------------
 
 class _SubStep:
@@ -207,11 +207,11 @@ class _SubStep:
     def __exit__(self, exc_type, exc, tb) -> bool:
         elapsed = time.time() - self.t0
         if exc_type is not None:
-            msg = f"  {red(chr(0x2717))} {self.label} — failed after {elapsed:.1f}s ({exc})"
+            msg = f"  {red(chr(0x2717))} {self.label}, failed after {elapsed:.1f}s ({exc})"
             (sys.stdout.write("\r\033[K" + msg + "\n") if self._tty else sys.stdout.write(msg + "\n"))
             sys.stdout.flush()
             return False
-        suffix = f" — {self.detail}" if self.detail else ""
+        suffix = f", {self.detail}" if self.detail else ""
         msg = f"  {green(chr(0x2713))} {self.label} ({elapsed:.1f}s){suffix}"
         (sys.stdout.write("\r\033[K" + msg + "\n") if self._tty else sys.stdout.write(msg + "\n"))
         sys.stdout.flush()
@@ -231,7 +231,7 @@ def substep(label: str) -> _SubStep:
 
 
 # ---------------------------------------------------------------------------
-# Heartbeat — periodic "still running" ticks for opaque blocking calls
+# Heartbeat, periodic "still running" ticks for opaque blocking calls
 # ---------------------------------------------------------------------------
 
 class Heartbeat:
@@ -241,7 +241,7 @@ class Heartbeat:
            (e.g. sklearn's .fit(), SHAP's shap_values()).
 
     The point isn't to show real progress (there isn't any to show for these
-    calls) — it's to make the difference between "still computing" and
+    calls), it's to make the difference between "still computing" and
     "hung" visible. Fast calls that finish before the first tick print
     nothing beyond their normal start/stop messages; only genuinely
     long-running calls grow the extra ticks.
