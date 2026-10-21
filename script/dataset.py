@@ -101,6 +101,18 @@ def _raw_data_present() -> bool:
     return True
 
 
+def _metadata_present() -> bool:
+    """
+    @brief True if the small parts of the real dataset are in data/raw/: at
+           least one LDAP snapshot and the converted answer key. This is all
+           the low-disk path extracts.
+    """
+    return (os.path.isdir(LDAP_DIR)
+            and any(f.endswith(".csv") for f in os.listdir(LDAP_DIR))
+            and os.path.exists(os.path.join(ANS_DIR, "insiders.csv"))
+            and os.path.exists(os.path.join(ANS_DIR, "malicious_days.csv")))
+
+
 def _already_extracted(dest_path: str) -> bool:
     """@brief True if dest_path exists as a complete file (not mid-write)."""
     return os.path.exists(dest_path) and not os.path.exists(dest_path + ".part")
@@ -226,8 +238,18 @@ def _stream_member_to(tar: tarfile.TarFile, member: tarfile.TarInfo, dest_path: 
         raise
 
 
-def ingest_r6_archive(archive_path: str, force: bool = False) -> None:
-    """@brief Stream logon/device/file/http/email.csv + LDAP/*.csv out of r6.2.tar.bz2 into data/raw/."""
+def ingest_r6_archive(archive_path: str, force: bool = False,
+                      include_logs: bool = True) -> None:
+    """
+    @brief Stream logon/device/file/http/email.csv + LDAP/*.csv out of r6.2.tar.bz2 into data/raw/.
+
+    @param archive_path  Path to r6.2.tar.bz2.
+    @param force         Re-extract files that are already present.
+    @param include_logs  Extract the five log files (~93 GB). When False only
+                         the LDAP snapshots are extracted and the logs stay in
+                         the archive, for `aggregate.py --from-archive` to
+                         stream -- the low-disk path (~25 GB in total).
+    """
     if not os.path.exists(archive_path):
         raise FileNotFoundError(f"r6.2 archive not found: {archive_path}")
 
@@ -245,6 +267,9 @@ def ingest_r6_archive(archive_path: str, force: bool = False) -> None:
             base = os.path.basename(member.name)
 
             if base in REQUIRED_REAL_FILES and base not in found_files:
+                if not include_logs:
+                    found_files[base] = "(left in the archive)"
+                    continue
                 dest = os.path.join(RAW_DIR, base)
                 if not force and _already_extracted(dest):
                     found_files[base] = "(already present, skipped)"
@@ -277,6 +302,8 @@ def ingest_r6_archive(archive_path: str, force: bool = False) -> None:
 
     ok(f"ldap/         <- {len(found_ldap)} monthly snapshot(s)"
        + (f" ({skipped_ldap} already present, skipped)" if skipped_ldap else ""))
+    if not include_logs:
+        ok("log files     -> left in the archive; aggregate.py streams them from there")
 
 
 def _scenario_id_from_filename(path: str, fallback: int) -> str:
@@ -470,7 +497,8 @@ def ingest_answers_archive(archive_path: str, force: bool = False) -> None:
     ok(f"answers/malicious_days.csv <- {len(days_df)} malicious (user, day) label(s)")
 
 
-def ingest_real_data(r6_archive: str, answers_archive: str, verify: bool = True, force: bool = False) -> None:
+def ingest_real_data(r6_archive: str, answers_archive: str, verify: bool = True,
+                     force: bool = False, include_logs: bool = True) -> None:
     header("Ingesting official CERT r6.2 dataset from local archives")
 
     if verify:
@@ -480,8 +508,9 @@ def ingest_real_data(r6_archive: str, answers_archive: str, verify: bool = True,
             _log("  Re-download it, or re-run with --no-verify-checksums to proceed anyway.")
             sys.exit(1)
 
-    step(2, "Extracting log files + LDAP snapshots")
-    ingest_r6_archive(r6_archive, force=force)
+    step(2, "Extracting log files + LDAP snapshots" if include_logs
+            else "Extracting LDAP snapshots (logs stay in the archive)")
+    ingest_r6_archive(r6_archive, force=force, include_logs=include_logs)
 
     step(3, "Extracting and converting the answer key")
     ingest_answers_archive(answers_archive, force=force)
@@ -715,7 +744,16 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=42, help="Synthetic generator RNG seed.")
     parser.add_argument("--force", action="store_true",
                          help="Redo ingestion/generation from scratch even if data/raw/ is already populated.")
+    parser.add_argument("--logs-from-archive", action="store_true",
+                         help="Extract only the LDAP snapshots and the answer key, leaving the five "
+                              "log files (~93 GB) inside r6.2.tar.bz2. aggregate.py then streams "
+                              "them from the archive. Needs ~25 GB of disk instead of ~117 GB.")
     args = parser.parse_args()
+
+    if args.logs_from_archive and _metadata_present() and not args.force:
+        ok("LDAP snapshots and answer key already present — leaving them untouched.")
+        _log(f"  {dim('(pass --force to redo from scratch)')}")
+        sys.exit(0)
 
     if _raw_data_present() and not args.force:
         ok("data/raw/ is already populated — leaving it untouched.")
@@ -729,7 +767,8 @@ if __name__ == "__main__":
     have_real = os.path.exists(args.r6_archive) and os.path.exists(args.answers_archive)
     if have_real:
         ingest_real_data(args.r6_archive, args.answers_archive,
-                          verify=not args.no_verify_checksums, force=args.force)
+                          verify=not args.no_verify_checksums, force=args.force,
+                          include_logs=not args.logs_from_archive)
     else:
         warn("Official r6.2 archives not found under data/ — falling back to the synthetic generator.")
         _log(f"    expected r6 archive      : {args.r6_archive}")

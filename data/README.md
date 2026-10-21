@@ -95,13 +95,31 @@ evaluation path reads `data/raw/` again**, so the ~93 GiB of extracted logs can 
 
 ## After ingestion — running the pipeline
 
+### Low-disk path (laptops)
+
+Extracting the logs needs ~117 GiB of free disk. If you do not have it, leave
+them compressed:
+
+```bash
+python script/dataset.py --logs-from-archive   # extracts LDAP (12 MiB) + the answer key only
+python script/aggregate.py --cohort 400        # streams the logs from r6.2.tar.bz2, ~1 GB RAM
+python script/prepare.py --cohort 400          # finds the cohort table on its own
+```
+
+`aggregate.py` streams from the archive whenever the extracted CSVs are absent.
+That path is single-threaded, so allow one to three hours; it is a one-off. Drop
+`--cohort 400` from both commands to build the full-population dataset the same
+way (2.8 GB RAM at most).
+
+### Extracted logs
+
 The extracted logs are ~93 GiB and are never loaded into memory. Two one-time steps
 reduce them to a dataset small enough to train off repeatedly:
 
 ```bash
-python script/aggregate.py   # raw logs -> per-(user, day) counts   (~3.3 min)
-python script/prepare.py     # counts   -> labelled dataset          (~3 s)
-python train.py              # trains off dataset.parquet            (~7 min)
+python script/aggregate.py   # raw logs -> per-(user, day) counts   (2.8 GB RAM; ~3.3 min on 12 cores, ~15 min on 4)
+python script/prepare.py     # counts   -> labelled dataset          (0.7 GB RAM; ~3 s)
+python train.py              # trains off dataset.parquet            (2.6 GB RAM; ~7 min on 12 cores, ~21 min on 4)
 streamlit run app.py         # launches the comparison dashboard
 ```
 
