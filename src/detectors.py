@@ -114,7 +114,7 @@ def _resample(X: np.ndarray, y: np.ndarray, random_state: int = 42
     """
     n_pos = int(y.sum())
     if n_pos < MIN_SMOTE_POSITIVES:
-        warn(f"only {n_pos} positive training row(s) — SMOTE skipped")
+        warn(f"only {n_pos} positive training row(s), SMOTE skipped")
         return X, y, {"smote": False, "n_positives": n_pos, "n_rows": len(X)}
 
     from imblearn.over_sampling import SMOTE

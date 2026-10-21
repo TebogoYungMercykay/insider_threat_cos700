@@ -73,7 +73,7 @@ def main() -> int:
         return 1
 
     t0 = time.perf_counter()
-    header("COS700 — Detector Comparison Experiment")
+    header("COS700, Detector Comparison Experiment")
 
     step(1, "Configuration")
     kv("Dataset",        os.path.relpath(args.dataset, ROOT))

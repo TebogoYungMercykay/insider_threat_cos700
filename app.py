@@ -1,6 +1,6 @@
 ##
 # @file app.py
-# @brief Streamlit UI — Per-User Behavioural Baseline Framework for Insider Threat Detection.
+# @brief Streamlit UI, Per-User Behavioural Baseline Framework for Insider Threat Detection.
 #
 # Requires train.py to have been run first:
 #   python train.py
@@ -49,7 +49,7 @@ PATHS = {
     "meta":       os.path.join(ARTIFACTS_DIR, "meta.json"),
 }
 
-st.set_page_config(page_title="Insider Threat — Per-User Baseline", layout="wide")
+st.set_page_config(page_title="Insider Threat, Per-User Baseline", layout="wide")
 
 st.markdown(f"""
 <style>
@@ -205,23 +205,23 @@ def page_overview(daily_df, meta: dict) -> None:
     col_a, col_b, col_c = st.columns(3)
     with col_a:
         st.markdown(f"""<div class="info-box">
-            <b>1 · Profile Builder</b><br>
+            <b>1. Profile Builder</b><br>
             Per-user historical mean/std computed from each user's own training-window
             activity. Users with insufficient history fall back to their role-group
             baseline (cold-start handling).
         </div>""", unsafe_allow_html=True)
     with col_b:
         st.markdown(f"""<div class="info-box">
-            <b>2 · Role-Aware Normaliser</b><br>
+            <b>2. Role-Aware Normaliser</b><br>
             Features are z-scored relative to the user's own role-peer group,
-            not the whole organisation — a database administrator's bulk file access
+            not the whole organisation, a database administrator's bulk file access
             is only "unusual" if it's unusual <i>for a database administrator</i>.
         </div>""", unsafe_allow_html=True)
     with col_c:
         st.markdown(f"""<div class="info-box">
-            <b>3 · Anomaly Scorer</b><br>
+            <b>3. Anomaly Scorer</b><br>
             An unsupervised outlier model ({meta.get('anomaly_method','iforest').upper()})
-            scores each user-day's <i>deviation vector</i> — so one cheaply-trained
+            scores each user-day's <i>deviation vector</i>, so one cheaply-trained
             global model behaves as a per-user-aware detector.
         </div>""", unsafe_allow_html=True)
 
@@ -321,7 +321,7 @@ def page_risk_explorer(daily_df, population, peruser, shap_explainer) -> None:
         if res is not None:
             ax.axhline(cut, color=colour, linewidth=0.9, linestyle=":")
     ax.set_ylabel("Risk score")
-    ax.set_title(f"Risk score over time — {user}", fontsize=10)
+    ax.set_title(f"Risk score over time, {user}", fontsize=10)
     ax.legend(facecolor="#0d1117", labelcolor="white", fontsize=8)
     ax.grid(color="#1e2d45", linewidth=0.5)
     fig.tight_layout()
@@ -329,8 +329,8 @@ def page_risk_explorer(daily_df, population, peruser, shap_explainer) -> None:
     plt.close(fig)
     n_mal_test = int(test_df.loc[in_user, "is_malicious"].sum())
     c1, c2, c3 = st.columns(3)
-    c1.metric("Alerts on this user — Population (RF)", counts["population"])
-    c2.metric("Alerts on this user — Per-User Framework", counts["peruser"])
+    c1.metric("Alerts on this user, Population (RF)", counts["population"])
+    c2.metric("Alerts on this user, Per-User Framework", counts["peruser"])
     c3.metric("Malicious test days (answer key)", n_mal_test)
     st.caption("Dotted lines mark each model's alert line: the top 0.1% of all "
                f"{len(test_df):,} test user-days, the budget used throughout the evaluation.")
@@ -345,7 +345,7 @@ def page_risk_explorer(daily_df, population, peruser, shap_explainer) -> None:
         exp_rows = user_df.set_index("date").loc[top["date"]].reset_index()
         shap_expl = explain_rows(shap_explainer, exp_rows)
         top["top_features"] = [
-            "; ".join(f"{f} ({v:+.3f})" for f, v in row) or "—" for row in shap_expl
+            "; ".join(f"{f} ({v:+.3f})" for f, v in row) or "none" for row in shap_expl
         ]
 
     # For the per-user framework, say what each deviation is relative to: the
@@ -365,7 +365,7 @@ def page_risk_explorer(daily_df, population, peruser, shap_explainer) -> None:
                     f"<b>{feat}</b> = {values.loc[d, feat]:,.0f} "
                     f"(usually {profile.loc[feat, 'p50']:,.0f}, 90th pct "
                     f"{profile.loc[feat, 'p90']:,.0f}; {z:+.1f}σ)")
-            lines.append("<br>".join(parts) or "—")
+            lines.append("<br>".join(parts) or "none")
         top["top_features"] = lines
 
     for _, row in top.iterrows():
@@ -379,7 +379,7 @@ def page_risk_explorer(daily_df, population, peruser, shap_explainer) -> None:
                 &nbsp;|&nbsp; Score: <b style="color:{COLOR_BLUE}">{row['score']:.3f}</b>
             </span>{mal_flag}
             <div style="font-family:monospace;font-size:0.8rem;color:#cdd;margin-top:6px;">
-                Top contributing features: {row['top_features'] if row['top_features'] else '—'}
+                Top contributing features: {row['top_features'] if row['top_features'] else 'none'}
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -387,7 +387,7 @@ def page_risk_explorer(daily_df, population, peruser, shap_explainer) -> None:
 
 def page_compare(daily_df, population, peruser) -> None:
     """@brief Who each model spends its alert budget on, role by role."""
-    st.subheader("Method Comparison — Who Gets the Alerts?")
+    st.subheader("Method Comparison. Who Gets the Alerts?")
     st.markdown(
         '<div class="info-box">The two models\' scores are in different units (a '
         'probability and an anomaly score), so they are compared where it matters: '
@@ -409,10 +409,10 @@ def page_compare(daily_df, population, peruser) -> None:
 
     c = st.columns(4)
     c[0].metric("High-privilege share of user-days", f"{hp.mean() * 100:.1f}%")
-    c[1].metric("High-priv alerts — RF",
+    c[1].metric("High-priv alerts, RF",
                 f"{int((pop_f & hp).sum())} of {k}", f"{(pop_f & hp).sum() / k * 100:.0f}%",
                 delta_color="off")
-    c[2].metric("High-priv alerts — Per-User",
+    c[2].metric("High-priv alerts, Per-User",
                 f"{int((per_f & hp).sum())} of {k}", f"{(per_f & hp).sum() / k * 100:.0f}%",
                 delta_color="off")
     c[3].metric("Malicious days caught (RF → Per-User)",
@@ -460,10 +460,10 @@ def page_compare(daily_df, population, peruser) -> None:
 
 def page_evaluate(daily_df, gt_df, population, peruser) -> None:
     """@brief Population baseline vs per-user framework on the full test split."""
-    st.subheader("Evaluation — Population Baseline vs Per-User Framework")
+    st.subheader("Evaluation. Population Baseline vs Per-User Framework")
     st.markdown(
         '<div class="info-box">Evaluated on the <b>entire held-out time-based test '
-        'split</b> — no leakage (both models are fit on the training window only) '
+        'split</b>, no leakage (both models are fit on the training window only) '
         'and no sampling. Sampling would be fatal here: the malicious class is '
         'roughly one user-day in thirty thousand, so a few thousand sampled rows '
         'contain no positives at all and every metric computed on them is noise. '
@@ -513,14 +513,14 @@ def page_evaluate(daily_df, gt_df, population, peruser) -> None:
         st.caption(
             "`roc_auc` and `avg_precision` are threshold-free; everything else is "
             "measured at the alert budget above. `lift` is precision over the "
-            "base rate — how many times better than spending the same budget at "
+            "base rate, how many times better than spending the same budget at "
             "random. `tie_fraction` is the share of alerts drawn arbitrarily "
             "from equal scores; a high value means the ranking ran out."
         )
 
         m1, m2, m3 = st.columns(3)
-        m1.metric("Recall — Population", f"{pop_metrics['recall']:.3f}")
-        m2.metric("Recall — Per-User", f"{per_metrics['recall']:.3f}",
+        m1.metric("Recall, Population", f"{pop_metrics['recall']:.3f}")
+        m2.metric("Recall, Per-User", f"{per_metrics['recall']:.3f}",
                   f"{per_metrics['recall'] - pop_metrics['recall']:+.3f}")
         m3.metric("FPR (high-privilege) Δ",
                   f"{per_metrics['fpr_high_privilege'] - pop_metrics['fpr_high_privilege']:+.4f}",
@@ -541,7 +541,7 @@ def page_evaluate(daily_df, gt_df, population, peruser) -> None:
                 "insider whose malicious activity spans more than three weeks is "
                 "low-and-slow. On r6.2 every burst insider acts before the split "
                 "date and both low-and-slow insiders act after it, so the test "
-                "split measures low-and-slow detection only — and the supervised "
+                "split measures low-and-slow detection only, and the supervised "
                 "baseline is being asked to generalise from burst training "
                 "examples to low-and-slow test ones."
             )
@@ -600,22 +600,22 @@ def _figure(name: str, caption: str) -> None:
     if os.path.exists(path):
         st.image(path, caption=caption, width="stretch")
     else:
-        st.info(f"Figure `{name}` not built yet — run `python report/make_figures.py`.")
+        st.info(f"Figure `{name}` not built yet, run `python report/make_figures.py`.")
 
 
 def page_findings() -> None:
     """@brief The research findings, read from results/ rather than recomputed."""
-    st.subheader("Research Findings — Full CERT r6.2 Population")
+    st.subheader("Research Findings. Full CERT r6.2 Population")
     st.markdown(
         '<div class="info-box">Everything on this page is read from the experiment '
         'outputs in <code>results/</code>, produced on the <b>full 4,000-user dataset</b> '
         '(403,245 test user-days, 38 malicious, 2 insiders) at an alert budget of '
-        '<b>0.1%</b> — 403 alerts over five months. The other pages run on a 400-user '
+        '<b>0.1%</b>, 403 alerts over five months. The other pages run on a 400-user '
         'cohort so they stay interactive.</div>', unsafe_allow_html=True)
 
     core_path = os.path.join(RESULTS_DIR, "core", "comparison.csv")
     if not os.path.exists(core_path):
-        st.warning("No results yet — run `python script/experiment.py --preset core`.")
+        st.warning("No results yet, run `python script/experiment.py --preset core`.")
         return
     core = pd.read_csv(core_path).set_index("detector")
     fw, rf = core.loc["peruser-ocsvm-personal-zscore"], core.loc["rf"]
@@ -633,8 +633,8 @@ def page_findings() -> None:
     c[3].metric("Training time", f"{fw['fit_seconds']:.1f} s",
                 f"RF: {rf['fit_seconds']:.0f} s", delta_color="off")
 
-    tabs = st.tabs(["SQ1 · Low-and-slow", "SQ2 · High-privilege", "Robustness",
-                    "SQ3 · History", "SQ5 · Explanations"])
+    tabs = st.tabs(["SQ1 Low-and-slow", "SQ2 High-privilege", "Robustness",
+                    "SQ3 History", "SQ5 Explanations"])
     with tabs[0]:
         _figure("timeline", "The two test-window insiders, scored against their own "
                 "history (blue) and by the same One-Class SVM on population-scaled "
@@ -652,7 +652,7 @@ def page_findings() -> None:
                                 "wins", "losses", "p_holm", "significant"]],
                          width="stretch", hide_index=True)
             st.caption("Paired Wilcoxon signed-rank tests of the framework against each "
-                       "detector across seeds, Holm–Bonferroni corrected.")
+                       "detector across seeds, Holm-Bonferroni corrected.")
     with tabs[3]:
         _figure("history", "Detection and stability against days of personal history.")
     with tabs[4]:
@@ -711,7 +711,7 @@ def page_about(meta: dict) -> None:
     (`logon.csv`, `device.csv`, `file.csv`, `http.csv`, `email.csv`, monthly LDAP
     org-structure snapshots). The real dataset must be downloaded manually from
     [kilthub.cmu.edu](https://kilthub.cmu.edu/articles/dataset/Insider_Threat_Test_Dataset/12841247)
-    (Lindauer, 2020) and placed in `data/` — see `data/README.md`. `script/dataset.py`
+    (Lindauer, 2020) and placed in `data/`. See `data/README.md`. `script/dataset.py`
     then verifies, extracts, and converts the official answer key automatically.
     If the real archives aren't present, it falls back to a **schema-identical synthetic
     dataset** with two injected attacker archetypes (`burst`, `low_slow`) and a legitimate
@@ -723,7 +723,7 @@ def page_about(meta: dict) -> None:
     - Role-aware normalisation targets the false-positive problem for high-privilege users
       (database administrators, system operators) described in the proposal's Problem Statement.
     - The Anomaly Scorer operates on *deviation* vectors (not raw magnitudes), so a single
-      cheaply-trained model implicitly becomes per-user-aware — this is what keeps the
+      cheaply-trained model implicitly becomes per-user-aware. This is what keeps the
       framework's fit/inference cost low enough for consumer hardware.
     - SHAP explanations (population model) and top-deviating-feature explanations
       (per-user model) give an analyst a reason for every flagged day, not just a score.
@@ -819,7 +819,7 @@ st.markdown(f"""
 
 st.sidebar.markdown(
     '<div class="nav-brand"><i></i>Insider Threat Detection</div>'
-    '<div class="nav-meta">COS700 · University of Pretoria</div>'
+    '<div class="nav-meta">COS700, University of Pretoria</div>'
     '<div class="nav-eyebrow">Navigation</div>',
     unsafe_allow_html=True,
 )

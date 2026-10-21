@@ -5,7 +5,7 @@
 # Aggregation (src/aggregate.py) already removes the compute barrier: the
 # full 4 000-user population reduces to a table small enough to train on
 # directly. A cohort is therefore an *experimental control*, not a workaround
-# — it exists so that development iterations are fast and so that the
+#. It exists so that development iterations are fast and so that the
 # reported experiment is a fixed, citable, reproducible sample rather than
 # "whatever fit in memory that day".
 #
@@ -38,7 +38,7 @@ def _allocate(role_sizes: pd.Series, budget: int) -> dict:
 
     Uses largest-remainder allocation so the parts sum exactly to the
     budget, then guarantees at least one user per role while any budget is
-    still unspent — small roles (r6.2 has several with a single member)
+    still unspent, small roles (r6.2 has several with a single member)
     would otherwise vanish entirely and take their role-group baseline
     with them.
 
