@@ -11,6 +11,11 @@ data/*.tar.bz2
 data/*.tar.gz
 data/*.zip
 
+# Personal documents, kept locally only
+docs/*.pdf
+report/declaration.pdf
+report/private.tex
+
 # Streamlit / OS
 .streamlit/*
 !.streamlit/config.toml

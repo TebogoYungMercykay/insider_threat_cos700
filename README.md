@@ -3,6 +3,8 @@
 **COS700 Research Report** — University of Pretoria, 2026
 Student: Selepe Sello · Supervisor: Prof. Jan Eloff
 
+> **Work in progress.** This repository is under active development ahead of the final COS700 submission. Results, the report and the documentation may still change.
+
 Implements the framework proposed in _"A Per-User Behavioural Baseline Framework for Insider Threat Detection in Resource-Constrained Environments"_: a lightweight, per-user, role-aware anomaly detection system, evaluated against a population-level Random Forest baseline, on the **CERT Insider Threat Test Dataset schema (r6.2)**.
 
 ---
@@ -206,7 +208,7 @@ cd report && pdflatex Report && bibtex Report && pdflatex Report && pdflatex Rep
 | [`docs/dataset-notes.md`](docs/dataset-notes.md)           | How the official answer key is converted to day-level ground truth, LDAP schema handling, extending to other releases |
 | [`docs/evaluation.md`](docs/evaluation.md)                 | The comparison experiment: what is compared, how the operating point is made fair, and what the benchmark forces; the follow-up studies |
 | [`report/Report.pdf`](report)                              | The COS700 research report (LaTeX source and figures script alongside)                                                |
-| [`docs/COS700 Research Proposal - Sello Selepe.pdf`](docs) | The accepted research proposal this implementation follows                                                            |
+| Research proposal                                          | The accepted proposal this implementation follows; kept with the author, not in the repository                        |
 
 ## Project Structure
 

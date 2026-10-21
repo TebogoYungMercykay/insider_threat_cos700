@@ -56,13 +56,17 @@
 \renewcommand{\UrlBreaks}{\do\/\do\-\do\_}
 \emergencystretch=1.5em
 
+% The student number is printed only when report/private.tex defines it, as
+% \newcommand{\studentnumber}{...}. That file is not committed.
+\IfFileExists{private.tex}{\input{private.tex}}{}
+
 \title
 {
    \includegraphics[width=12cm]{up-logo.jpg} \\
    \vspace{2cm}
    \textbf{COS700 Research Report} \\ \vspace{0.5cm}
    \textbf{A Per-User Behavioural Baseline Framework for Insider Threat Detection in Resource-Constrained Environments} \\ \vspace{0.5cm}
-   \vspace{0.5cm}
+   \ifdefined\studentnumber \textbf{Student number:} \studentnumber \\ \fi \vspace{0.5cm}
    \textbf{Supervisor(s)}: \\ Prof. Jan Eloff
 }
 
