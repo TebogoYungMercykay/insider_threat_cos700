@@ -6,7 +6,7 @@
 # tree ensembles, which is why it is used here for PopulationBaseline. The
 # per-user anomaly framework (IsolationForest / LOF / OneClassSVM) is instead
 # explained via the interpretable z-score deviation vector produced directly
-# by BehaviouralProfiler (see RiskResult.top_features in src/baseline.py) —
+# by BehaviouralProfiler (see RiskResult.top_features in src/baseline.py),
 # SHAP's tree support for IsolationForest is experimental and its
 # model-agnostic KernelExplainer is far too slow for interactive use, so the
 # deviation-vector ranking is used instead as a deliberately faster and

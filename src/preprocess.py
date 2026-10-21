@@ -202,7 +202,7 @@ def load_malicious_days() -> pd.DataFrame | None:
     script/dataset.py: a user-day is malicious only if a labelled malicious
     event actually occurred on it. It is strictly better than filling in
     each insider's [start_date, end_date] window, because scenarios 2 and 4
-    unfold in short bursts spread over one to two months — window-filling
+    unfold in short bursts spread over one to two months, window-filling
     marks 131 user-days malicious where only 44 carry malicious activity,
     so two thirds of the "positives" would be ordinary behaviour.
 
@@ -258,7 +258,7 @@ def load_raw_logs() -> dict:
 
     Only viable for the synthetic generator's output or a small hand-made
     sample. For the real r6.2 release use script/aggregate.py and
-    load_daily_features() instead — see docs/data-pipeline.md.
+    load_daily_features() instead. See docs/data-pipeline.md.
 
     @return  Dict of DataFrames keyed by "logon", "device", "file", "http", "email".
     """
@@ -277,7 +277,7 @@ def load_raw_logs() -> dict:
             f"limit and would exhaust RAM.\n"
             f"Use the streaming aggregator instead:\n"
             f"    python script/aggregate.py\n"
-            f"then train as usual — train.py reads the aggregated table."
+            f"then train as usual, train.py reads the aggregated table."
         )
 
     logs = {}
@@ -471,7 +471,7 @@ def attach_context(daily_df: pd.DataFrame, org_df: pd.DataFrame,
     df = attach_org_context(daily_df, org_df)
     days_df = load_malicious_days()
     if days_df is None or not len(days_df):
-        warn("No malicious_days.csv — falling back to window filling, which "
+        warn("No malicious_days.csv, falling back to window filling, which "
              "over-labels benign days inside an insider's active period.")
 
     n_labels = 0 if days_df is None else len(days_df)

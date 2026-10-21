@@ -122,7 +122,7 @@ This report designs, implements and evaluates such a framework. Each user's norm
    \item A lightweight per-user behavioural baseline framework, comprising a Profile Builder, a Role-Aware Normaliser and an Anomaly Scorer. It runs on a laptop and trains on the full 4\,000-user dataset in under ten seconds.
    \item A streaming data pipeline that reduces the 93\,GB of raw r6.2 logs to an 8.7\,MB, self-contained, user-day dataset in 3.3 minutes on 32\,GB of RAM, with ground truth derived from the official answer key.
    \item A controlled comparison of 45 detector configurations on one chronological split, at a fixed alert budget rather than a shared threshold. The comparison includes a same-algorithm population control, a trivial volume floor, and the four population classifiers compared by Noever \cite{Noever2019}.
-   \item Three follow-up studies that close gaps the headline comparison leaves open. The first re-runs the key detectors across ten seeds, with paired Wilcoxon signed-rank tests and Holm--Bonferroni correction. The second measures how many days of history a personal baseline needs (sub-question 3). The third scores each system's explanations against the features the official answer key says the insider actually used (sub-question 5).
+   \item Three follow-up studies that close gaps the headline comparison leaves open. The first re-runs the key detectors across ten seeds, with paired Wilcoxon signed-rank tests and Holm-Bonferroni correction. The second measures how many days of history a personal baseline needs (sub-question 3). The third scores each system's explanations against the features the official answer key says the insider actually used (sub-question 5).
    \item A report of the negative and unexpected results alongside the positive ones: a volume floor that beats most published-style baselines, two supervised classifiers that fail outright, and design choices that recreate the very failure the research set out to remove.
 \end{enumerate}
 
@@ -221,7 +221,7 @@ and the signed distance $\sum_i \alpha_i k(x_i, x) - \rho$ serves as a continuou
 Supervised classifiers learn the malicious class directly from labelled examples. On the CERT data, Noever compared 88 algorithms from 16 families and found Random Forests the strongest \cite{Noever2019}, which is why the proposal designates a Random Forest as the population baseline. With malicious activity below 0.02\% of events, training sets are usually rebalanced. The Synthetic Minority Over-sampling Technique (SMOTE) creates synthetic minority examples by interpolating between a positive example and one of its $k$ nearest positive neighbours \cite{Chawla2002}. It is applied to the training split only, after the split, so no synthetic row can leak information from the test window.
 
 \subsection{Evaluation Under Extreme Class Imbalance}
-\paragraph{ROC-AUC and average precision.} ROC-AUC measures the probability that a random positive is ranked above a random negative. When negatives outnumber positives 31\,000 to one, a detector can rank the benign mass well, and so score a high ROC-AUC, while placing no positive anywhere near the top of the queue \cite{Davis2006,Saito2015}. Average precision (AP) summarises the precision--recall curve instead:
+\paragraph{ROC-AUC and average precision.} ROC-AUC measures the probability that a random positive is ranked above a random negative. When negatives outnumber positives 31\,000 to one, a detector can rank the benign mass well, and so score a high ROC-AUC, while placing no positive anywhere near the top of the queue \cite{Davis2006,Saito2015}. Average precision (AP) summarises the precision-recall curve instead:
 \[
    \text{AP} = \sum_n (R_n - R_{n-1})\, P_n,
 \]
@@ -237,7 +237,7 @@ A flagged user-day with no reason attached must be investigated from scratch. SH
 and TreeExplainer computes these values exactly and efficiently for tree ensembles \cite{Lundberg2020}. The per-user framework has a more direct explanation available: the deviation vector itself. Its largest components name the features on which today departs most from this user's normal.
 
 \subsection{Statistical Comparison of Detectors}
-Several components of every detector are random, including subsampling, forest construction, SMOTE and tie-breaking. A difference observed under one seed may therefore be an artefact of that draw. Re-running each detector under $n$ seeds yields paired observations: under seed $s$, detectors $A$ and $B$ give metric values $a_s$ and $b_s$. The Wilcoxon signed-rank test \cite{Wilcoxon1945} ranks the non-zero differences $|a_s - b_s|$ and tests whether the positive and negative ranks are balanced, without assuming normality. It is the test recommended for comparing classifiers over paired runs \cite{Demsar2006}. With $n=10$ seeds and every difference in the same direction, the exact two-sided $p$-value is $2/2^{10} \approx 0.002$, which is the smallest the test can produce at this $n$. When $m$ hypotheses are tested together, the Holm--Bonferroni procedure \cite{Holm1979} controls the family-wise error rate. It compares the $i$-th smallest $p$-value with $\alpha/(m-i+1)$ and stops at the first failure.
+Several components of every detector are random, including subsampling, forest construction, SMOTE and tie-breaking. A difference observed under one seed may therefore be an artefact of that draw. Re-running each detector under $n$ seeds yields paired observations: under seed $s$, detectors $A$ and $B$ give metric values $a_s$ and $b_s$. The Wilcoxon signed-rank test \cite{Wilcoxon1945} ranks the non-zero differences $|a_s - b_s|$ and tests whether the positive and negative ranks are balanced, without assuming normality. It is the test recommended for comparing classifiers over paired runs \cite{Demsar2006}. With $n=10$ seeds and every difference in the same direction, the exact two-sided $p$-value is $2/2^{10} \approx 0.002$, which is the smallest the test can produce at this $n$. When $m$ hypotheses are tested together, the Holm-Bonferroni procedure \cite{Holm1979} controls the family-wise error rate. It compares the $i$-th smallest $p$-value with $\alpha/(m-i+1)$ and stops at the first failure.
 
 % ===========================================================================
 \section{Related Work}
@@ -365,7 +365,7 @@ explain = top_k(abs(Z), k=3)
 \end{lstlisting}
 \end{mdframed}
 
-The ranking always uses the model's native score. An early version min--max scaled scores into $[0,1]$ against training percentiles and clipped them. That collapsed every test row above the training range to exactly 1.0, which is the entire top of the ranking and the only part that matters at a 0.1\% budget, so the framework returned 174 indistinguishable rows when asked for four. The bounded score shown in the dashboard is now a display-only calibration that stays strictly ordered with the native score.
+The ranking always uses the model's native score. An early version min-max scaled scores into $[0,1]$ against training percentiles and clipped them. That collapsed every test row above the training range to exactly 1.0, which is the entire top of the ranking and the only part that matters at a 0.1\% budget, so the framework returned 174 indistinguishable rows when asked for four. The bounded score shown in the dashboard is now a display-only calibration that stays strictly ordered with the native score.
 
 \subsection{Comparison Set}
 Every detector implements one interface: it is fitted on the training split and returns one score per test row, higher meaning more suspicious. No detector sets its own threshold. Table~\ref{tab:detectors} lists the families.
@@ -406,7 +406,7 @@ High-privilege users are identified from the LDAP role. In r6.2 this subgroup is
 
 \subsection{Follow-up Studies}
 \label{sec:studies_method}
-\paragraph{Seed robustness.} The headline comparison uses one seed. The seed study re-runs seven detectors under ten seeds. These are the framework, its role-scope and Isolation Forest variants, the two population anomaly controls, the Random Forest and the volume floor. Each seed re-draws the fit subsample, the forests, SMOTE and the tie-break, while the split and features stay fixed. The framework is compared with each other detector on average precision, recall and high-privilege alert share by paired two-sided Wilcoxon signed-rank tests, Holm--Bonferroni corrected across all 18 comparisons at $\alpha=0.05$.
+\paragraph{Seed robustness.} The headline comparison uses one seed. The seed study re-runs seven detectors under ten seeds. These are the framework, its role-scope and Isolation Forest variants, the two population anomaly controls, the Random Forest and the volume floor. Each seed re-draws the fit subsample, the forests, SMOTE and the tie-break, while the split and features stay fixed. The framework is compared with each other detector on average precision, recall and high-privilege alert share by paired two-sided Wilcoxon signed-rank tests, Holm-Bonferroni corrected across all 18 comparisons at $\alpha=0.05$.
 
 \paragraph{History length (SQ3).} To find how much history a personal baseline needs, each user's training data is cut to their most recent $N$ active days, for $N \in \{3, 7, 14, 30, 60, 90, 120, 180\}$ and the full window (248 active days on average). This simulates an organisation that has been collecting logs for $N$ days when monitoring starts. The framework is refitted on the truncated data and scored on the unchanged test window. The cold-start threshold is lowered to $N$ where necessary, so every user is genuinely measured against an $N$-day personal profile rather than silently falling back to their role. Two properties are measured. \emph{Stability} has two parts: how far the $N$-day per-user means sit from the full-history means, in full-history standard deviations, and the share of the test window's \emph{benign} user-days that show any feature beyond $|z|=3$ under the $N$-day profile. The latter is the false-deviation load an analyst would inherit. \emph{Usefulness} is detection at the 0.1\% budget, compared with the role baseline, which needs no personal history at all. Both the One-Class SVM and Isolation Forest scorers are swept under three seeds.
 
@@ -546,7 +546,7 @@ Figure~\ref{fig:timeline} shows why. CMP2946's scenario (job-hunting followed by
 
 \begin{table}[htbp]
 \centering
-\caption{How far down each detector's queue an analyst must read to reach each insider (user-days ranked above the insider's best malicious day; median over ten seeds, with range), and days from the insider's first malicious day to the first flagged one at the 0.1\% budget (``--'': never flagged in any seed).}
+\caption{How far down each detector's queue an analyst must read to reach each insider (user-days ranked above the insider's best malicious day; median over ten seeds, with range), and days from the insider's first malicious day to the first flagged one at the 0.1\% budget (``never'': not flagged in any seed).}
 \label{tab:timing}
 \footnotesize
 \setlength{\tabcolsep}{4pt}
@@ -556,13 +556,13 @@ Figure~\ref{fig:timeline} shows why. CMP2946's scenario (job-hunting followed by
 & \multicolumn{2}{c}{\textbf{Alerts ahead}} & \multicolumn{2}{c}{\textbf{Detection delay (days)}} \\
 \textbf{Detector} & \textbf{CMP2946} & \textbf{CDE1846} & \textbf{CMP2946} & \textbf{CDE1846} \\
 \midrule
-Framework (personal, OCSVM)  & 186 (168--191) & 85 (6--140)          & 0 & 29 \\
-Framework, role scope        & 5\,626 & 0                          & -- & 29 \\
-Framework, iForest scorer    & 1\,239 & 80 (40--218)               & -- & 29 \\
-Population OCSVM (control)   & 2\,175 & 0 (0--1)                   & -- & 29 \\
-Population iForest           & 3\,595 & 1\,414                     & -- & -- \\
-Random Forest (baseline)     & 45 (19--78) & 24\,367 (9\,093--77\,971) & 0 & -- \\
-Volume floor                 & 30\,040 & 0                         & -- & 49 \\
+Framework (personal, OCSVM)  & 186 (168 to 191) & 85 (6 to 140)          & 0 & 29 \\
+Framework, role scope        & 5\,626 & 0                          & never & 29 \\
+Framework, iForest scorer    & 1\,239 & 80 (40 to 218)               & never & 29 \\
+Population OCSVM (control)   & 2\,175 & 0 (0 to 1)                   & never & 29 \\
+Population iForest           & 3\,595 & 1\,414                     & never & never \\
+Random Forest (baseline)     & 45 (19 to 78) & 24\,367 (9\,093 to 77\,971) & 0 & never \\
+Volume floor                 & 30\,040 & 0                         & never & 49 \\
 \bottomrule
 \end{tabular}%
 }
@@ -649,12 +649,12 @@ Every comparison so far uses one seed. Table~\ref{tab:seeds} and Figure~\ref{fig
 \toprule
 \textbf{Detector} & \textbf{AP} & \textbf{Recall} & \textbf{Days} & \textbf{Insiders} & \textbf{HP share} & \textbf{Fit (s)} \\
 \midrule
-\dn{peruser-ocsvm-personal-zscore}   & 0.0363 $\pm$ 0.0011 & \textbf{0.547 $\pm$ 0.011} & \textbf{20--21} & \textbf{2/2} & 3.4 $\pm$ 0.2\% & 10.4 \\
+\dn{peruser-ocsvm-personal-zscore}   & 0.0363 $\pm$ 0.0011 & \textbf{0.547 $\pm$ 0.011} & \textbf{20 to 21} & \textbf{2/2} & 3.4 $\pm$ 0.2\% & 10.4 \\
 \dn{peruser-ocsvm-role-zscore}       & \textbf{0.0473 $\pm$ 0.0049} & 0.079 $\pm$ 0.000 & 3 & 1/2 & \textbf{0.5 $\pm$ 0.1\%} & 9.5 \\
-\dn{peruser-iforest-personal-zscore} & 0.0029 $\pm$ 0.0008 & 0.076 $\pm$ 0.008 & 2--3 & 1/2 & 7.4 $\pm$ 1.5\% & 8.0 \\
+\dn{peruser-iforest-personal-zscore} & 0.0029 $\pm$ 0.0008 & 0.076 $\pm$ 0.008 & 2 to 3 & 1/2 & 7.4 $\pm$ 1.5\% & 8.0 \\
 \dn{pop-ocsvm}                       & 0.0360 $\pm$ 0.0063 & 0.079 $\pm$ 0.000 & 3 & 1/2 & 20.4 $\pm$ 1.7\% & 2.9 \\
 \dn{pop-iforest}                     & 0.0009 $\pm$ 0.0001 & 0.000 $\pm$ 0.000 & 0 & 0/2 & 47.5 $\pm$ 7.3\% & 3.6 \\
-\dn{rf}                              & 0.0049 $\pm$ 0.0027 & 0.163 $\pm$ 0.046 & 3--8 & 1/2 & 21.3 $\pm$ 2.5\% & 486.4 \\
+\dn{rf}                              & 0.0049 $\pm$ 0.0027 & 0.163 $\pm$ 0.046 & 3 to 8 & 1/2 & 21.3 $\pm$ 2.5\% & 486.4 \\
 \dn{volume}                          & 0.0284 $\pm$ 0.0000 & 0.053 $\pm$ 0.000 & 2 & 1/2 & 4.0 $\pm$ 0.0\% & 0.0 \\
 \bottomrule
 \end{tabular}%
@@ -704,15 +704,15 @@ Figure~\ref{fig:history} and Table~\ref{tab:history} show the history-length swe
 180 days  & 0.0345 & 0.579 & 1.00 & 3.4\% & 6.2\% \\
 All (248) & 0.0372 & 0.553 & 1.00 & 3.4\% & 5.9\% \\
 \midrule
-Role baseline & 0.0454 & 0.079 & 0.50 & 0.6\% & -- \\
+Role baseline & 0.0454 & 0.079 & 0.50 & 0.6\% & \\
 \bottomrule
 \end{tabular}%
 }
 \end{table}
 
-Detection needs more history than stability does. Below 30 days the personal baseline finds almost nothing and is worse than simply using the role baseline (recall 0.079). At 60 active days, about three months of working days, recall jumps to 0.34 and both insiders are surfaced. Gains continue to roughly 120--180 days and then plateau. Below 13 days the anomaly model also has fewer than its usual 50\,000 training rows, so the shortest histories conflate profile quality with training-set size. From 14 days upward the model's training size is constant, and the trend is attributable to the profiles alone.
+Detection needs more history than stability does. Below 30 days the personal baseline finds almost nothing and is worse than simply using the role baseline (recall 0.079). At 60 active days, about three months of working days, recall jumps to 0.34 and both insiders are surfaced. Gains continue to roughly 120 to 180 days and then plateau. Below 13 days the anomaly model also has fewer than its usual 50\,000 training rows, so the shortest histories conflate profile quality with training-set size. From 14 days upward the model's training size is constant, and the trend is attributable to the profiles alone.
 
-The answer to SQ3 is therefore about 30 active days for a baseline that is \emph{stable}, and about 60 for one that is \emph{useful}. Two practical consequences follow. The proposal's 14-day cold-start threshold is too low: users should remain on their role baseline until about 60 days of history are available. And insufficient history is not merely ineffective, it is harmful for the wrong scorer. With three days of history the Isolation Forest variant spends 44\% of its alerts on administrators (Figure~\ref{fig:history}, bottom left), because an under-estimated spread makes naturally variable users look anomalous. A short personal baseline recreates the population failure; the One-Class SVM variant is robust to this (1.6--4.1\% throughout).
+The answer to SQ3 is therefore about 30 active days for a baseline that is \emph{stable}, and about 60 for one that is \emph{useful}. Two practical consequences follow. The proposal's 14-day cold-start threshold is too low: users should remain on their role baseline until about 60 days of history are available. And insufficient history is not merely ineffective, it is harmful for the wrong scorer. With three days of history the Isolation Forest variant spends 44\% of its alerts on administrators (Figure~\ref{fig:history}, bottom left), because an under-estimated spread makes naturally variable users look anomalous. A short personal baseline recreates the population failure; the One-Class SVM variant is robust to this (1.6 to 4.1\% throughout).
 
 \subsection{SQ4: Computational Cost}
 \label{sec:sq4}
@@ -733,8 +733,8 @@ Population One-Class SVM & 2.7 & 0.024 & 0.2 \\
 Random Forest (proposal baseline) & 446.8 & 0.002 & 1.9 \\
 Logistic Regression & 6.9 & 0.0003 & 0.5 \\
 \midrule
-One-off: raw logs to user-day table (93\,GB) & 198 & -- & bounded \\
-One-off: user-day table to frozen dataset & 3 & -- & -- \\
+One-off: raw logs to user-day table (93\,GB) & 198 & & bounded \\
+One-off: user-day table to frozen dataset & 3 & & \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -825,7 +825,7 @@ This research asked whether a lightweight per-user behavioural baseline could de
 \paragraph{Answers to the sub-questions.}
 \begin{itemize}
    \item \textbf{SQ1 (low-and-slow detection).} At a 0.1\% alert budget the per-user baseline found 21 of 38 low-and-slow malicious days and both insiders, against 8 days and one insider for the Random Forest and 3 days for the same algorithm with a population reference. The gain is concentrated where the hypothesis predicts: on the insider whose behaviour was unusual for themselves but ordinary for the organisation. Across ten seeds it found 20 or 21 days every time, against 3 to 8 for the Random Forest, and it was the only detector to bring both insiders within the first 200 alerts of its queue.
-   \item \textbf{SQ2 (high-privilege false positives).} Population detectors spent 21--49\% of their alerts on IT administrators, who are 2.4\% of user-days. The framework spent 3.5\% and the role-scoped variant 0.7\%. Holding the algorithm fixed shows the reference frame, not the model, removes the bias. The same holds for executives, whom no role list would have anticipated.
+   \item \textbf{SQ2 (high-privilege false positives).} Population detectors spent 21 to 49\% of their alerts on IT administrators, who are 2.4\% of user-days. The framework spent 3.5\% and the role-scoped variant 0.7\%. Holding the algorithm fixed shows the reference frame, not the model, removes the bias. The same holds for executives, whom no role list would have anticipated.
    \item \textbf{SQ3 (history needed).} A personal baseline is stable after about 30 active days and useful after about 60. Below that it is worse than the role baseline, and for the Isolation Forest scorer it recreates the administrator false-positive problem. The cold-start threshold should therefore be about 60 days, not the 14 assumed in the proposal.
    \item \textbf{SQ4 (cost).} The framework trains on 990\,765 user-days in under eight seconds on a laptop, 57 times faster than the SMOTE-balanced Random Forest, because one model is fitted regardless of the number of users. The one-off reduction of 93\,GB of logs takes 3.3 minutes in bounded memory.
    \item \textbf{SQ5 (analyst context).} A per-user deviation tells the analyst what changed, by how much relative to this person's normal, and what that normal is. Against answer-key ground truth, its top-named reason was correct on 94.7\% of malicious test days. The same explanation with a population reference managed 52.6\%. The Random Forest's SHAP values managed 50.0\% when read for positive contributions, and 2.6\% when ranked by absolute value, below the 29.6\% of a random guess. The framework also places both insiders within the first 190 alerts of its queue, where the Random Forest leaves one of them about 24\,000 alerts deep. Whether this shortens real investigations needs a user study.

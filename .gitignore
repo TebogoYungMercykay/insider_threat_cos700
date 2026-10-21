@@ -4,7 +4,7 @@ __pycache__/
 .venv/
 venv/
 
-# Dataset — never commit raw/derived data or the official archives
+# Dataset, never commit raw/derived data or the official archives
 data/raw/
 data/artifacts/
 data/*.tar.bz2

@@ -161,7 +161,7 @@ def _explain_markdown(out: dict) -> str:
 # ---------------------------------------------------------------------------
 
 def run_seeds(args) -> None:
-    step(1, f"Seed robustness — {len(args.seeds)} seeds × "
+    step(1, f"Seed robustness, {len(args.seeds)} seeds × "
             f"{len(SEED_STUDY_DETECTORS)} detectors")
 
     def on_run(seed, det):
@@ -188,7 +188,7 @@ def run_history(args) -> None:
 def run_explain(args) -> None:
     step(3, "Explanation fidelity (sub-question 5)")
     if not os.path.exists(args.answers):
-        print(f"  {amber('No answer key at')} {args.answers} — skipped.")
+        print(f"  {amber('No answer key at')} {args.answers}, skipped.")
         return
     out = run_explanation_study(args.dataset, args.answers, budget=args.budget,
                                 on_step=lambda label: print(f"  {dim(label)}", flush=True))
@@ -219,7 +219,7 @@ def main() -> int:
         return 1
 
     t0 = time.perf_counter()
-    header("COS700 — Follow-up Studies")
+    header("COS700, Follow-up Studies")
     # Shortest first, so the long seed study never holds the others up.
     order = ("history", "explain", "seeds") if args.study == "all" else (args.study,)
     for name in order:

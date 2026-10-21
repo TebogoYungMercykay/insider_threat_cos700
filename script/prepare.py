@@ -82,10 +82,10 @@ def main() -> int:
                     if args.cohort else DEFAULT_DATASET)
 
     t0 = time.perf_counter()
-    header("COS700 — Dataset Preparation")
+    header("COS700, Dataset Preparation")
 
     if os.path.exists(args.out) and not args.force:
-        warn(f"{os.path.relpath(args.out)} already exists — use --force to rebuild.")
+        warn(f"{os.path.relpath(args.out)} already exists, use --force to rebuild.")
         return 0
 
     if not os.path.exists(source):
@@ -143,7 +143,7 @@ def main() -> int:
         kv(label, value)
 
     if stats["n_malicious_train"] == 0:
-        warn("No malicious rows fall in the training split — the supervised "
+        warn("No malicious rows fall in the training split, the supervised "
              "baseline will have nothing positive to learn from.")
 
     step(4, "Writing the dataset")
@@ -174,7 +174,7 @@ def main() -> int:
     divider("─", 70)
     print(f"  Dataset : {blue(os.path.relpath(args.out))}")
     print()
-    print(f"  {dim('This file is self-contained — it carries the features, org')}")
+    print(f"  {dim('This file is self-contained. It carries the features, org')}")
     print(f"  {dim('context, labels and the train/test split. Nothing downstream')}")
     print(f"  {dim('reads data/raw/ any more.')}")
     print()

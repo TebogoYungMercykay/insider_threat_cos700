@@ -1,4 +1,4 @@
-# Data Pipeline — Training on 93 GB with 32 GB of RAM
+# Data Pipeline, Training on 93 GB with 32 GB of RAM
 
 This document explains how the framework ingests the CERT r6.2 insider threat
 dataset on a consumer laptop, and records the correctness problems that were
@@ -20,7 +20,7 @@ The r6.2 release is ~93 GB of raw event CSV once extracted:
 | **Total** | **93.2 GB** | **135 M** |
 
 The original loader called `pandas.read_csv()` on each file in full. That
-cannot complete on a 32 GB machine — `http.csv` alone would need several
+cannot complete on a 32 GB machine, `http.csv` alone would need several
 hundred GB of RAM, because most of its volume is a free-text `content` column
 that this framework never uses.
 
@@ -29,7 +29,7 @@ plus the 23.8 GB source archive is ~117 GB, against ~96 GB free.
 
 ## The key observation
 
-Every feature in `FEATURE_COLS` is a **per-`(user, day)` aggregate** — a
+Every feature in `FEATURE_COLS` is a **per-`(user, day)` aggregate**. A
 count, a sum, or a distinct-count. Aggregates are computable in a single
 sequential pass with memory proportional to the number of `(user, day)` pairs,
 **not** to the number of events.
@@ -65,15 +65,15 @@ org context, labels and the train/test split, and takes 3 seconds.
 
 Splitting them means you can re-label, re-split, or carve out a cohort in
 seconds without ever re-reading 93 GB. And once `dataset.parquet` exists,
-**nothing downstream reads `data/raw/` at all** — verified by deleting the
+**nothing downstream reads `data/raw/` at all**. Verified by deleting the
 directory outright and training successfully
 (`test_prepared_dataset_is_self_contained`).
 
 ### 1. Build the dataset
 
 ```bash
-python script/aggregate.py                 # raw logs -> counts   — 3.3 min
-python script/prepare.py                   # counts -> dataset    — 3 s
+python script/aggregate.py                 # raw logs -> counts, 3.3 min
+python script/prepare.py                   # counts -> dataset, 3 s
 ```
 
 ### The dataset artifact
@@ -91,7 +91,7 @@ python script/prepare.py                   # counts -> dataset    — 3 s
 Alongside it, `dataset.meta.json` records the provenance: which aggregated
 table, LDAP snapshot and ground-truth files it was built from (with content
 hashes), the cohort and seed if any, the split cutoff, the class counts, and
-the five insider windows — so evaluation keeps working without
+the five insider windows, so evaluation keeps working without
 `answers/insiders.csv`, and a frozen dataset can always be traced back to the
 release it came from.
 
@@ -107,7 +107,7 @@ rm data/raw/{http,email,file,device,logon}.csv     # frees ~93 GB
 ```
 
 Keep `data/r6.2.tar.bz2`. If the feature definitions ever change, rebuild
-straight from the archive — it decompresses on the fly and never unpacks to
+straight from the archive. It decompresses on the fly and never unpacks to
 disk:
 
 ```bash
@@ -121,7 +121,7 @@ deleted the CSVs is never a dead end.
 ### 3. Train
 
 ```bash
-python train.py                            # full population — 7 min
+python train.py                            # full population, 7 min
 ```
 
 ## How the aggregation is made fast
@@ -144,7 +144,7 @@ bounded regardless of file size.
 
 **Distinct domains without a shared vocabulary.** `n_distinct_domains` is the
 one feature that cannot be summed across shards. Shards return per-`(user, day)`
-sets of CRC-32 host ids, which the parent unions before taking cardinalities —
+sets of CRC-32 host ids, which the parent unions before taking cardinalities,
 no coordination between processes required.
 
 **Host ids are kept packed.** Across 1.39 M user-days the parent holds 33.5 M
@@ -235,7 +235,7 @@ insider; 50 collateral events are dropped.
 Ground truth was `[min_event, max_event]` per insider, with every day in
 between marked malicious. Scenarios 2 and 4 unfold in short bursts over one to
 two months, so this marked **131 user-days malicious when only 44 carry any
-malicious activity** — two thirds of the "positives" were ordinary behaviour by
+malicious activity**. Two thirds of the "positives" were ordinary behaviour by
 a user who happened to be an insider at some other point.
 
 `script/dataset.py` now also emits `answers/malicious_days.csv`, the exact
@@ -259,7 +259,7 @@ feature was dead. It now reports **584,737 events**.
 
 r6.2's fictional company is **DTAA** (`@dtaa.com`); the string
 `corp.example.com` appears nowhere, so every message counted as external. The
-check now tests against `dtaa.com` across `to`, `cc` **and** `bcc` — r6.2 packs
+check now tests against `dtaa.com` across `to`, `cc` **and** `bcc`, r6.2 packs
 multiple recipients into one `;`-separated field, and 28% of messages have more
 than one.
 
@@ -276,7 +276,7 @@ count. It is now parsed by counting entries.
 
 ### 8. `n_distinct_domains` counted URLs, not domains
 
-r6.2 URLs carry unique per-visit path components — in a 300 k-row sample there
+r6.2 URLs carry unique per-visit path components, in a 300 k-row sample there
 are **12,587 distinct URLs but only 456 distinct hosts**. A URL `nunique` was
 very nearly a duplicate of `n_http_events` rather than a breadth-of-browsing
 signal. Hosts are now extracted before counting (mean 24.1 vs 84.0 events/day).
@@ -294,7 +294,7 @@ DEAD FEATURES (always zero): none
 
 ## Known characteristics of the evaluation
 
-Not bugs — properties of r6.2 that shape what results are achievable, and that
+Not bugs, properties of r6.2 that shape what results are achievable, and that
 should be stated explicitly in any write-up.
 
 **The positive class is extremely small.** 44 malicious user-days out of
@@ -310,8 +310,8 @@ cutoff (2010-12-29):
 
 The supervised Random Forest baseline therefore trains on 6 positive days from
 3 insiders and is evaluated on 2 **entirely unseen scenario types**. That is a
-realistic and defensible design — it measures detection of novel insider
-behaviour rather than memorisation — but it caps what a supervised baseline can
+realistic and defensible design. It measures detection of novel insider
+behaviour rather than memorisation, but it caps what a supervised baseline can
 achieve, and it is precisely the argument for the unsupervised per-user
 framework, which needs no positive labels at all.
 

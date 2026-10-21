@@ -1,4 +1,4 @@
-# Evaluation — Comparing Detectors Without Fooling Yourself
+# Evaluation, Comparing Detectors Without Fooling Yourself
 
 This document covers the experiment that answers the proposal's research
 questions: what is compared, how the comparison is made fair, and which
@@ -24,9 +24,9 @@ r6.2 is a harder evaluation target than its headline numbers suggest, and
 three of its properties shape everything below.
 
 **The positive class is 44 user-days in 1 394 010.** That is one in roughly
-31 000. Accuracy is useless, ROC-AUC is close to useless — a detector can rank
-the 1.39 million benign days beautifully and still put no insider near the top
-— and day-level recall over 38 test positives moves in steps of 2.6
+31 000. Accuracy is useless, ROC-AUC is close to useless, a detector can rank
+the 1.39 million benign days beautifully and still put no insider near the top,
+and day-level recall over 38 test positives moves in steps of 2.6
 percentage points.
 
 **The time-based split leaves six positive training rows.** The 70/30 split by
@@ -38,14 +38,14 @@ representation of the deployment problem, where the labels you have are
 always from attacks that already happened.
 
 **The archetypes are not spread across the split.** Classifying each insider
-by the calendar span of their malicious window — the geometry is in the answer
-key, fixed before any model runs — gives three burst insiders and two
+by the calendar span of their malicious window. The geometry is in the answer
+key, fixed before any model runs, gives three burst insiders and two
 low-and-slow ones:
 
 | Archetype    | Insiders                  | Window span | Malicious days | Falls in |
 | ------------ | ------------------------- | ----------- | -------------- | -------- |
-| burst        | ACM2278, PLJ1771, MBG3183 | 0–6 days    | 6              | train    |
-| low_and_slow | CMP2946, CDE1846          | 56–63 days  | 38             | test     |
+| burst        | ACM2278, PLJ1771, MBG3183 | 0 to 6 days    | 6              | train    |
+| low_and_slow | CMP2946, CDE1846          | 56 to 63 days  | 38             | test     |
 
 Every burst insider acts before the split date; both low-and-slow insiders act
 after it. So the test split measures low-and-slow detection **only**, and the
@@ -67,7 +67,7 @@ sets its own threshold.
 | ------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------- |
 | `floor`                   | `random`, `volume`                         | A detector that cannot beat "rank everyone by how busy they were" has not earned a place in a dissertation |
 | `population-supervised`   | `rf`, `dt`, `gb`, `lr`                     | The four classifiers Noever (2019) compares on this dataset, so the baseline is a published operating point rather than one chosen here |
-| `population-unsupervised` | `pop-iforest`, `pop-lof`, `pop-ocsvm`      | The isolating control — see below                                               |
+| `population-unsupervised` | `pop-iforest`, `pop-lof`, `pop-ocsvm`      | The isolating control. See below                                               |
 | `per-user-framework`      | `peruser-<algorithm>-<scope>-<statistic>`  | The proposed framework, across all three normalisation scopes                    |
 
 ### The control that makes the result mean something
@@ -87,15 +87,15 @@ difference between them is not confounded by anything else.
 
 Two detectors emit incomparable numbers. A Random Forest emits a calibrated
 probability; Isolation Forest emits a negated path length. Thresholding both
-at 0.5 does not compare two detectors — it compares a probability against an
+at 0.5 does not compare two detectors. It compares a probability against an
 arbitrary constant.
 
 So every threshold here is derived from an **alert budget**: each detector may
 flag the top *b* fraction of test rows, and the question is who it spends
 those alerts on. This is also how detection is deployed. An analyst team has a
 fixed number of investigations per day, not a fixed decision threshold. The
-default budget of 0.1% is about 400 alerts across five months and 4 000 users
-— roughly three a day.
+default budget of 0.1% is about 400 alerts across five months and 4 000 users,
+roughly three a day.
 
 Alongside it the report carries two threshold-free metrics. **Average
 precision** is the primary one: it integrates over every threshold and, unlike
@@ -115,7 +115,7 @@ Parquet file happened to be sorted.
 Ties are therefore broken by a **seeded permutation**: exactly *k* rows are
 flagged, the choice among equals is arbitrary, reproducible, and independent
 of both the detector and the row order. A detector whose ranking is degenerate
-at the cut is not rewarded for it — it gets a random sample of its own tied
+at the cut is not rewarded for it. It gets a random sample of its own tied
 group, which is what it would deliver in deployment.
 
 The `tie_fraction` column reports how much of each detector's budget was spent
@@ -128,7 +128,7 @@ that way. A high value means the ranking, not the metric, is what ran out.
 | `avg_precision`              | Threshold-free ranking quality; the primary comparison metric                                  |
 | `roc_auc`                    | Reported for continuity with prior work; near-saturated at this positive rate                  |
 | `recall`, `precision`, `f1`  | At the shared alert budget                                                                     |
-| `lift`                       | Precision over the base rate — how many times better than spending the budget at random        |
+| `lift`                       | Precision over the base rate, how many times better than spending the budget at random        |
 | `insider_recall`             | Did the detector surface this *person* at all? Coarser than day-level recall and far more stable over 38 positives |
 | `recall_low_and_slow`        | Sub-question 1                                                                                 |
 | `fpr_high_privilege`         | Sub-question 2                                                                                 |
@@ -155,7 +155,7 @@ around in the data.
 **The risk score clipped, destroying the ranking it existed to produce.**
 `score_array()` min-max scaled the raw anomaly score against the 1st and
 99.5th training percentiles and clipped to [0, 1]. Every test row above the
-99.5th percentile therefore collapsed to exactly 1.0 — the entire top of the
+99.5th percentile therefore collapsed to exactly 1.0. The entire top of the
 ranking, which is the only part that matters at a 0.1% alert budget. The
 framework was asked for 4 alerts and returned 174 indistinguishable rows.
 Ranking now uses the native anomaly score (`raw_score()`), and the bounded
@@ -175,7 +175,7 @@ three-week drift or an isolated blip, which is structurally the thing
 sub-question 1 asks about. The proposal's risk-management section anticipates
 this extension explicitly.
 
-Two properties keep it honest. The windows are **causal** — each covers the
+Two properties keep it honest. The windows are **causal**. Each covers the
 current row and earlier rows of the same user only, so they can be computed
 over the whole table before the split without leaking test information into
 training (`assert_causal()` verifies this, and a test confirms the check
@@ -198,7 +198,7 @@ on the Anomaly Scorer:
 
 Isolation Forest gains 9.2x from them; One-Class SVM loses most of its recall.
 That is the expected behaviour of an RBF kernel when 13 features become 39
-highly correlated ones — added dimensions dilute the distance metric — whereas
+highly correlated ones, added dimensions dilute the distance metric, whereas
 Isolation Forest samples features per split and tolerates the redundancy.
 
 Two things follow. **Algorithm and feature set have to be selected together**,
@@ -216,7 +216,7 @@ with **base** features, and `train.py` defaults to it.
 Every stochastic component takes the run's seed: the anomaly models, the
 SMOTE resampling, the fit subsampling, and the tie-break permutation. LOF and
 One-Class SVM are quadratic in the training set and are fitted on a seeded
-subsample of 50 000 training rows — they cannot be fitted on 990 765 rows on
+subsample of 50 000 training rows. They cannot be fitted on 990 765 rows on
 consumer hardware, and the proposal's feasibility claim is about consumer
 hardware. Profiles are always built on the full training split, and scoring
 always covers every test row. The subsample size is recorded in `run.json`.
@@ -230,11 +230,11 @@ unchanged.
 `insider_timing()` in `src/evaluate.py` adds two per-insider measures, written
 to `insider_timing.csv` by every run:
 
-- **`alerts_ahead`** — how many user-days rank above the insider's best-ranked
+- **`alerts_ahead`**. How many user-days rank above the insider's best-ranked
   malicious day. Threshold-free: it is how far down the queue an analyst reads
   before reaching this person, and it is the investigation-effort proxy for
   sub-question 5.
-- **`detection_delay_days`** — days from the insider's first malicious day to
+- **`detection_delay_days`**. Days from the insider's first malicious day to
   the first malicious day flagged at the budget. The problem statement is
   about how long insiders go unnoticed; this measures it.
 
@@ -258,7 +258,7 @@ comparison leaves open. Each writes CSVs, `summary.md` and `run.json` to
 
 | Study     | Question                                           | Design |
 | --------- | -------------------------------------------------- | ------ |
-| `seeds`   | Do the differences survive re-drawing every random component? | 7 detectors × 10 seeds; paired two-sided Wilcoxon signed-rank vs the framework on AP, recall and high-privilege alert share; Holm–Bonferroni over all 18 tests |
+| `seeds`   | Do the differences survive re-drawing every random component? | 7 detectors × 10 seeds; paired two-sided Wilcoxon signed-rank vs the framework on AP, recall and high-privilege alert share; Holm-Bonferroni over all 18 tests |
 | `history` | Sub-question 3: how much history does a personal baseline need? | Each user's training data cut to their most recent N active days (3 … 180, all); refit, rescore the unchanged test window; stability (mean shift, benign days beyond \|z\| = 3) and detection |
 | `explain` | Sub-question 5: does the explanation name what the insider did? | Answer-key rows replayed through the aggregator's own per-event handler give the features each malicious day actually moved; top-3 explanations scored (hit@1, hit@3, precision@3) against that and against a random explanation |
 
@@ -267,17 +267,17 @@ What they found on the full population:
 - **History (SQ3).** A personal baseline is *stable* after about 30 active days
   (benign days beyond |z| = 3 fall from 34% at 3 days to 8.7%, then flatten)
   and *useful* after about 60 (recall 0.34 and both insiders, against 0.079 for
-  the role baseline; 0.50–0.58 from 120 days). Below 30 days it is worse than
+  the role baseline; 0.50 to 0.58 from 120 days). Below 30 days it is worse than
   the role baseline, and with the Isolation Forest scorer a 3-day baseline puts
-  44% of alerts on administrators — too little history recreates the
+  44% of alerts on administrators. Too little history recreates the
   population failure. The 14-day cold-start default is too low; ~60 is the
   evidence-based threshold.
 - **Explanations (SQ5).** The framework's top-named reason is a feature the
   malicious events actually changed on 94.7% of malicious test days (random:
   29.6%). The same method against the population manages 52.6%, against the
   role group 39.5%. The Random Forest's SHAP explanations depend on how they
-  are read: ranked by |φ| they score 2.6% — worse than random, because on
-  low-probability days the largest values are reasons *against* an alert —
+  are read: ranked by |φ| they score 2.6%, worse than random, because on
+  low-probability days the largest values are reasons *against* an alert,
   and restricted to positive contributions 50.0% overall and 87.5% on the
   forest's own 8 alerts. The dashboard now shows only positive contributions.
   The forest learned the malicious class from the training window's burst

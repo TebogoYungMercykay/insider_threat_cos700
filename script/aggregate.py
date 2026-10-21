@@ -7,7 +7,7 @@
 # The r6.2 logs are ~100 GB on disk and cannot be loaded into a 32 GB machine.
 # Every feature this framework uses is a per-(user, day) aggregate, so the raw
 # events only ever need to be read once, sequentially, and reduced. Afterwards
-# the raw CSVs are redundant and can be deleted — the ~24 GB archive is enough
+# the raw CSVs are redundant and can be deleted, the ~24 GB archive is enough
 # to rebuild the table if the feature definitions ever change.
 #
 # Usage:
@@ -79,10 +79,10 @@ def main() -> int:
     from src.cohort import build_cohort, save_cohort
 
     t0 = time.perf_counter()
-    header("COS700 — Raw Log Aggregation")
+    header("COS700, Raw Log Aggregation")
 
     if os.path.exists(args.out) and not args.force:
-        warn(f"{os.path.relpath(args.out)} already exists — use --force to rebuild.")
+        warn(f"{os.path.relpath(args.out)} already exists, use --force to rebuild.")
         return 0
 
     cohort_users = None
@@ -154,14 +154,14 @@ def main() -> int:
     divider("─", 70)
     print(f"  Table : {blue(os.path.relpath(args.out))}")
     print()
-    print(f"  {dim('Next — attach context, labels and the train/test split:')}")
+    print(f"  {dim('Next, attach context, labels and the train/test split:')}")
     prepare_cmd = "python script/prepare.py" + (
         "" if args.out == DEFAULT_TABLE else f" --from {os.path.relpath(args.out)}")
     print(f"    {amber(prepare_cmd)}")
     print()
     print(f"  {dim('The five raw CSVs are now redundant. To reclaim ~93 GB:')}")
     print(f"    {dim('rm data/raw/{http,email,file,device,logon}.csv')}")
-    print(f"  {dim('Keep data/raw/ldap/ and data/raw/answers/ — prepare.py reads them.')}")
+    print(f"  {dim('Keep data/raw/ldap/ and data/raw/answers/, prepare.py reads them.')}")
     print(f"  {dim('Rebuild later from the archive with:')}")
     print(f"    {dim('python script/aggregate.py --from-archive --force')}")
     divider("═", 70)

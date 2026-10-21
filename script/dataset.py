@@ -1,8 +1,8 @@
 ##
 # @file script/dataset.py
 # @brief Populate data/raw/ with CERT r6.2-schema logs, either from the
-#        official CERT Insider Threat Test Dataset archives, or — if those
-#        aren't present — a schema-identical synthetic generator, so the
+#        official CERT Insider Threat Test Dataset archives, or, if those
+#        aren't present, a schema-identical synthetic generator, so the
 #        rest of the pipeline (src/preprocess.py, train.py, app.py) is
 #        completely agnostic to which one produced the data.
 #
@@ -28,7 +28,7 @@
 #                  baseline is expected to miss
 #
 # Either path leaves data/raw/ in the same shape, at every step logging what
-# is currently happening — this script never runs a multi-second operation
+# is currently happening. This script never runs a multi-second operation
 # without first saying so, and never leaves you watching a blank terminal.
 #
 # Usage:
@@ -89,7 +89,7 @@ def _raw_data_present() -> bool:
     """
     @brief True if data/raw/ looks fully populated: the five required log
            CSVs, at least one LDAP snapshot, and the derived
-           answers/insiders.csv all exist — regardless of whether they came
+           answers/insiders.csv all exist, regardless of whether they came
            from the real archives or the synthetic generator.
     """
     if not all(os.path.exists(os.path.join(RAW_DIR, f)) for f in REQUIRED_REAL_FILES):
@@ -119,7 +119,7 @@ def _already_extracted(dest_path: str) -> bool:
 
 
 # ===========================================================================
-# REAL DATA PATH — ingest the official r6.2 / answers archives
+# REAL DATA PATH, ingest the official r6.2 / answers archives
 # ===========================================================================
 
 # ---------------------------------------------------------------------------
@@ -173,7 +173,7 @@ def verify_checksums(archive_paths: list) -> bool:
                     entries.setdefault(os.path.basename(fname.lstrip("*")), (algo, hashval.lower()))
 
     if not entries:
-        _log(f"  {dim('(no CHECKSUMS-sha*.txt found under data/ — skipping verification)')}")
+        _log(f"  {dim('(no CHECKSUMS-sha*.txt found under data/, skipping verification)')}")
         return True
 
     all_ok = True
@@ -182,7 +182,7 @@ def verify_checksums(archive_paths: list) -> bool:
         if not os.path.exists(path):
             continue
         if fname not in entries:
-            warn(f"no checksum entry found for {fname} in CHECKSUMS-sha*.txt — skipping verification for this file")
+            warn(f"no checksum entry found for {fname} in CHECKSUMS-sha*.txt, skipping verification for this file")
             continue
         algo, expected = entries[fname]
         actual = _hash_file(path, algo)
@@ -197,7 +197,7 @@ def verify_checksums(archive_paths: list) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Archive extraction — stream each wanted member straight to its final
+# Archive extraction, stream each wanted member straight to its final
 # destination (never staged), atomically (write to "<name>.part", rename on
 # success) so an interrupted run leaves either a complete file or nothing.
 # ---------------------------------------------------------------------------
@@ -231,7 +231,7 @@ def _stream_member_to(tar: tarfile.TarFile, member: tarfile.TarInfo, dest_path: 
                 f"{e}\n"
                 f"  Disk quota exceeded writing {dest_path}. This script streams files "
                 f"directly to their destination (no staging copy), so this means the "
-                f"destination filesystem itself is out of space — free up space under "
+                f"destination filesystem itself is out of space, free up space under "
                 f"{RAW_DIR}. Already-completed files were left untouched; re-run once "
                 f"space is available to resume from here."
             ) from e
@@ -274,7 +274,7 @@ def ingest_r6_archive(archive_path: str, force: bool = False,
                 if not force and _already_extracted(dest):
                     found_files[base] = "(already present, skipped)"
                     skipped_files += 1
-                    warn(f"{base} already present — skipped")
+                    warn(f"{base} already present, skipped")
                     continue
                 _stream_member_to(tar, member, dest)
                 found_files[base] = member.name
@@ -351,7 +351,7 @@ def _load_designated_insiders(tar: tarfile.TarFile) -> dict:
                    if m.isfile() and os.path.basename(m.name) == "insiders.csv"), None)
     if member is None:
         raise FileNotFoundError(
-            "answers archive has no master insiders.csv — cannot determine "
+            "answers archive has no master insiders.csv, cannot determine "
             f"which users are the designated insiders for {RELEASE}."
         )
     handle = tar.extractfile(member)
@@ -381,7 +381,7 @@ def build_ground_truth_from_answers(archive_path: str) -> tuple[pd.DataFrame, pd
          attributed to that scenario's designated insider are treated as
          malicious. Scenario 3 is the reason: the insider sends an alarming
          mass email, and the answer key also records the 24 recipients'
-         'View' events. Those recipients are victims, not insiders —
+         'View' events. Those recipients are victims, not insiders,
          labelling them malicious would inject 24 spurious positive users.
 
     Both a per-window summary and the exact malicious day set are returned.
@@ -480,7 +480,7 @@ def ingest_answers_archive(archive_path: str, force: bool = False) -> None:
     days_path = os.path.join(ANS_DIR, "malicious_days.csv")
 
     if not force and _already_extracted(out_path) and _already_extracted(days_path):
-        warn("answers/insiders.csv already present — skipped")
+        warn("answers/insiders.csv already present, skipped")
         return
 
     _log(f"  Reading {os.path.basename(archive_path)} ...")
@@ -504,7 +504,7 @@ def ingest_real_data(r6_archive: str, answers_archive: str, verify: bool = True,
     if verify:
         step(1, "Verifying checksums")
         if not verify_checksums([r6_archive, answers_archive]):
-            err("Checksum mismatch detected — the archive may be corrupt or truncated.")
+            err("Checksum mismatch detected. The archive may be corrupt or truncated.")
             _log("  Re-download it, or re-run with --no-verify-checksums to proceed anyway.")
             sys.exit(1)
 
@@ -517,12 +517,12 @@ def ingest_real_data(r6_archive: str, answers_archive: str, verify: bool = True,
 
     print()
     divider("═", 70, green)
-    print(green(f"  Done — real data ready at {RAW_DIR}", bold=True))
+    print(green(f"  Done, real data ready at {RAW_DIR}", bold=True))
     divider("═", 70, green)
 
 
 # ===========================================================================
-# SYNTHETIC PATH — schema-identical generator with two attacker archetypes
+# SYNTHETIC PATH, schema-identical generator with two attacker archetypes
 # ===========================================================================
 
 ROLES = ["Employee", "Employee", "Employee", "Employee", "SysAdmin", "DBAdmin"]
@@ -715,7 +715,7 @@ def generate_synthetic(n_users: int = 300, n_days: int = 180, seed: int = 42) ->
 
     print()
     divider("═", 70, green)
-    print(green(f"  Done — synthetic data ready at {RAW_DIR}", bold=True))
+    print(green(f"  Done, synthetic data ready at {RAW_DIR}", bold=True))
     divider("═", 70, green)
 
 
@@ -751,12 +751,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.logs_from_archive and _metadata_present() and not args.force:
-        ok("LDAP snapshots and answer key already present — leaving them untouched.")
+        ok("LDAP snapshots and answer key already present, leaving them untouched.")
         _log(f"  {dim('(pass --force to redo from scratch)')}")
         sys.exit(0)
 
     if _raw_data_present() and not args.force:
-        ok("data/raw/ is already populated — leaving it untouched.")
+        ok("data/raw/ is already populated, leaving it untouched.")
         _log(f"  {dim('(pass --force to redo from scratch)')}")
         sys.exit(0)
 
@@ -770,10 +770,10 @@ if __name__ == "__main__":
                           verify=not args.no_verify_checksums, force=args.force,
                           include_logs=not args.logs_from_archive)
     else:
-        warn("Official r6.2 archives not found under data/ — falling back to the synthetic generator.")
+        warn("Official r6.2 archives not found under data/, falling back to the synthetic generator.")
         _log(f"    expected r6 archive      : {args.r6_archive}")
         _log(f"    expected answers archive : {args.answers_archive}")
         _log(f"  {dim('(pass --r6-archive/--answers-archive to point at a different location,')}")
-        _log(f"  {dim(' or download the real dataset — see data/README.md)')}")
+        _log(f"  {dim(' or download the real dataset. See data/README.md)')}")
         print()
         generate_synthetic(n_users=args.n_users, n_days=args.n_days, seed=args.seed)
