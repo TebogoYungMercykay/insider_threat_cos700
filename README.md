@@ -1,7 +1,7 @@
 # Per-User Behavioural Baseline Framework for Insider Threat Detection
 
 **COS700 Research Report**, University of Pretoria, 2026
-Student: Selepe Sello, Supervisor: Prof. Jan Eloff
+Student: Selepe Sello (uXXXXXXXX), Supervisor: Prof. Jan Eloff
 
 > **Work in progress.** This repository is under active development ahead of the final COS700 submission. Results, the report and the documentation may still change.
 
