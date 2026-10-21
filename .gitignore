@@ -12,5 +12,6 @@ data/*.tar.gz
 data/*.zip
 
 # Streamlit / OS
-.streamlit/
+.streamlit/*
+!.streamlit/config.toml
 .DS_Store
