@@ -41,6 +41,7 @@
 
 import csv
 import io
+import itertools
 import multiprocessing as mp
 import os
 import tarfile
@@ -65,6 +66,10 @@ SHARD_BYTES = 512 * 1024 * 1024
 
 ## Read granularity inside a shard.
 READ_BYTES = 8 * 1024 * 1024
+
+## Rows streamed from the archive per merge, so the single-process archive
+#  path holds its running totals in the same compact form as the CSV path.
+ARCHIVE_BATCH_ROWS = 2_000_000
 
 
 # ---------------------------------------------------------------------------
@@ -382,9 +387,35 @@ def _shard_worker(task):
 # Merge
 # ---------------------------------------------------------------------------
 
+def _pack_hosts(hosts) -> bytes:
+    """
+    @brief A set of 32-bit host ids as sorted, de-duplicated packed uint32.
+
+    The running totals hold ~33.5 M host ids across 1.39 M user-days. As
+    Python sets of ints that is ~4.2 GB -- most of the aggregator's memory,
+    and enough to exhaust an 8 GB laptop. Packed it is ~134 MB.
+
+    @param hosts  Host ids (a set, or another packed value).
+    @return       Packed bytes, 4 per distinct id.
+    """
+    if isinstance(hosts, bytes):
+        return hosts
+    arr = np.fromiter(hosts, dtype=np.uint32, count=len(hosts))
+    return np.unique(arr).tobytes()
+
+
+def _n_hosts(hosts) -> int:
+    """@brief Number of distinct ids in a set or a packed value."""
+    return len(hosts) // 4 if isinstance(hosts, bytes) else len(hosts)
+
+
 def _merge(counts: dict, domains: dict, part_counts: dict, part_domains: dict) -> None:
     """
     @brief Fold one shard's accumulators into the running totals, in place.
+
+    Shards return host ids as sets, which is what de-duplication inside a
+    shard needs. The running totals keep them packed (see _pack_hosts), and
+    a (user, day) that straddles two shards is unioned in packed form.
 
     @param counts,domains            Running totals -- updated.
     @param part_counts,part_domains  One shard's result.
@@ -398,11 +429,13 @@ def _merge(counts: dict, domains: dict, part_counts: dict, part_domains: dict) -
                 acc[j] += vec[j]
 
     for key, seen in part_domains.items():
+        packed = _pack_hosts(seen)
         acc = domains.get(key)
         if acc is None:
-            domains[key] = seen
+            domains[key] = packed
         else:
-            acc |= seen
+            domains[key] = np.union1d(np.frombuffer(_pack_hosts(acc), dtype=np.uint32),
+                                      np.frombuffer(packed, dtype=np.uint32)).tobytes()
 
 
 def _to_frame(counts: dict, domains: dict) -> pd.DataFrame:
@@ -410,7 +443,7 @@ def _to_frame(counts: dict, domains: dict) -> pd.DataFrame:
     @brief Materialise the merged accumulators as a per-(user, day) DataFrame.
 
     @param counts   {(user, day_ordinal): [counter slots]}.
-    @param domains  {(user, day_ordinal): set[domain id]}.
+    @param domains  {(user, day_ordinal): host ids, as a set or packed}.
     @return         DataFrame of user, date, and FEATURE_COLS.
     """
     if not counts:
@@ -423,7 +456,7 @@ def _to_frame(counts: dict, domains: dict) -> pd.DataFrame:
 
     slot = SLOT["n_distinct_domains"]
     matrix[:, slot] = np.fromiter(
-        (len(domains[k]) if k in domains else 0 for k in keys),
+        (_n_hosts(domains[k]) if k in domains else 0 for k in keys),
         dtype=np.float32, count=len(keys),
     )
 
@@ -492,6 +525,31 @@ def discover_sources(raw_dir: str, archive: str | None = None,
     )
 
 
+class _ForwardOnly(io.RawIOBase):
+    """
+    @brief A tar member read as a plain forward-only stream.
+
+    In streaming mode ("r|bz2") a member's file object reports seekability by
+    asking the underlying tarfile stream, which has no seekable() at all, so
+    io.TextIOWrapper raises AttributeError on construction. Declaring the
+    stream unseekable is both true and all TextIOWrapper needs.
+    """
+
+    def __init__(self, handle) -> None:
+        self._handle = handle
+
+    def readable(self) -> bool:
+        return True
+
+    def seekable(self) -> bool:
+        return False
+
+    def readinto(self, buffer) -> int:
+        data = self._handle.read(len(buffer))
+        buffer[:len(data)] = data
+        return len(data)
+
+
 def _aggregate_from_archive(archive: str, cohort: frozenset | None,
                             org_domain: str) -> tuple[dict, dict]:
     """
@@ -522,11 +580,25 @@ def _aggregate_from_archive(archive: str, cohort: frozenset | None,
                 continue
             with substep(f"streaming {kind}.csv from archive "
                          f"({human_size(member.size)})") as s:
-                text = io.TextIOWrapper(handle, encoding="utf-8", errors="replace",
-                                        newline="")
+                text = io.TextIOWrapper(
+                    io.BufferedReader(_ForwardOnly(handle), READ_BYTES),
+                    encoding="utf-8", errors="replace", newline="")
                 reader = csv.reader(text)
                 next(reader, None)                      # header
-                n = _consume(kind, reader, cohort, counts, domains, org_domain)
+                # Batches play the part shards play on the CSV path: their
+                # sets stay small and the running totals stay packed. One
+                # pass over the 84 GB web log as a single accumulator would
+                # hold every host set at once (~4 GB).
+                n = 0
+                while True:
+                    batch = itertools.islice(reader, ARCHIVE_BATCH_ROWS)
+                    first = next(batch, None)
+                    if first is None:
+                        break
+                    part_counts, part_domains = {}, {}
+                    n += _consume(kind, itertools.chain([first], batch), cohort,
+                                  part_counts, part_domains, org_domain)
+                    _merge(counts, domains, part_counts, part_domains)
                 s.set_detail(f"{n:,} rows")
     return counts, domains
 

@@ -114,7 +114,7 @@ def _resample(X: np.ndarray, y: np.ndarray, random_state: int = 42
     """
     n_pos = int(y.sum())
     if n_pos < MIN_SMOTE_POSITIVES:
-        warn(f"only {n_pos} positive training row(s) — SMOTE skipped")
+        warn(f"only {n_pos} positive training row(s), SMOTE skipped")
         return X, y, {"smote": False, "n_positives": n_pos, "n_rows": len(X)}
 
     from imblearn.over_sampling import SMOTE
@@ -133,19 +133,21 @@ class SupervisedDetector(Detector):
 
     def __init__(self, name: str, estimator, scale: bool = False,
                  smote: bool = True, feature_cols: list[str] | None = None,
-                 **config) -> None:
+                 random_state: int = 42, **config) -> None:
         """
         @param name          Identifier for the results table.
         @param estimator     Unfitted sklearn classifier exposing predict_proba.
         @param scale         Standardise features before fitting (linear models).
         @param smote         Apply SMOTE to the training split.
         @param feature_cols  Features to train on.
+        @param random_state  Seed for SMOTE. The estimator carries its own.
         """
         super().__init__(name, feature_cols, scale=scale, smote=smote, **config)
-        self.estimator = estimator
-        self.scale     = scale
-        self.smote     = smote
-        self.scaler_   = None
+        self.estimator    = estimator
+        self.scale        = scale
+        self.smote        = smote
+        self.random_state = random_state
+        self.scaler_      = None
 
     def fit(self, train_df: pd.DataFrame) -> "SupervisedDetector":
         t0 = time.perf_counter()
@@ -158,7 +160,7 @@ class SupervisedDetector(Detector):
 
         info = {"smote": False, "n_positives": int(y.sum()), "n_rows": len(X)}
         if self.smote:
-            X, y, info = _resample(X, y)
+            X, y, info = _resample(X, y, self.random_state)
 
         with substep(f"{self.name}: fitting on {len(X):,} rows "
                      f"({info['n_positives']} real positives)") as s:
@@ -353,19 +355,23 @@ def _supervised(name: str, feature_cols, random_state: int) -> SupervisedDetecto
         return SupervisedDetector(
             "rf", RandomForestClassifier(n_estimators=300, random_state=random_state,
                                          n_jobs=-1),
-            feature_cols=feature_cols, algorithm="RandomForest")
+            feature_cols=feature_cols, random_state=random_state,
+            algorithm="RandomForest")
     if name == "dt":
         return SupervisedDetector(
             "dt", DecisionTreeClassifier(random_state=random_state),
-            feature_cols=feature_cols, algorithm="DecisionTree")
+            feature_cols=feature_cols, random_state=random_state,
+            algorithm="DecisionTree")
     if name == "gb":
         return SupervisedDetector(
             "gb", HistGradientBoostingClassifier(random_state=random_state),
-            feature_cols=feature_cols, algorithm="HistGradientBoosting")
+            feature_cols=feature_cols, random_state=random_state,
+            algorithm="HistGradientBoosting")
     if name == "lr":
         return SupervisedDetector(
             "lr", LogisticRegression(max_iter=1000, random_state=random_state),
-            scale=True, feature_cols=feature_cols, algorithm="LogisticRegression")
+            scale=True, feature_cols=feature_cols, random_state=random_state,
+            algorithm="LogisticRegression")
     raise ValueError(f"Unknown supervised detector: {name}")
 
 

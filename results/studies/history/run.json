@@ -1,0 +1,30 @@
+{
+  "study": "history",
+  "dataset": "dataset.parquet",
+  "history_days": [
+    3,
+    7,
+    14,
+    30,
+    60,
+    90,
+    120,
+    180,
+    "all"
+  ],
+  "configs": [
+    "ocsvm-zscore",
+    "iforest-zscore"
+  ],
+  "seeds": [
+    42,
+    1,
+    2
+  ],
+  "alert_budget": 0.001,
+  "exceedance_z": 3.0,
+  "min_history_days": 14,
+  "truncation": "each user's most recent N active training days",
+  "elapsed_seconds": 719.0,
+  "run_at": "2026-10-13 15:16:16"
+}
