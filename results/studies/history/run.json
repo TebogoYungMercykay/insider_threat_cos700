@@ -25,6 +25,6 @@
   "exceedance_z": 3.0,
   "min_history_days": 14,
   "truncation": "each user's most recent N active training days",
-  "elapsed_seconds": 719.0,
-  "run_at": "2026-10-13 15:16:16"
+  "elapsed_seconds": 697.0,
+  "run_at": "2026-10-21 23:38:05"
 }

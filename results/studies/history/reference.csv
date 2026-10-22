@@ -1,4 +1,4 @@
 detector,seed,avg_precision,roc_auc,recall,precision,f1,lift,insider_recall,n_insiders_detected,fpr_high_privilege,alert_share_high_privilege,tie_fraction,fit_seconds,score_ms_per_row,peak_memory_mb
-peruser-ocsvm-role-zscore,42,0.043301,0.6748,0.0789,0.007444,0.013605,78.99,0.5,1,0.000306,0.0074,0.0,6.5,0.02473,891.0
-peruser-ocsvm-role-zscore,1,0.044501,0.7224,0.0789,0.007444,0.013605,78.99,0.5,1,0.000204,0.005,0.0,6.451,0.02468,891.0
-peruser-ocsvm-role-zscore,2,0.048537,0.6809,0.0789,0.007444,0.013605,78.99,0.5,1,0.000204,0.005,0.0,6.404,0.02526,891.0
+peruser-ocsvm-role-zscore,42,0.043301,0.6748,0.0789,0.007444,0.013605,78.99,0.5,1,0.000306,0.0074,0.0,6.267,0.02378,891.0
+peruser-ocsvm-role-zscore,1,0.044501,0.7224,0.0789,0.007444,0.013605,78.99,0.5,1,0.000204,0.005,0.0,6.201,0.02343,891.0
+peruser-ocsvm-role-zscore,2,0.048537,0.6809,0.0789,0.007444,0.013605,78.99,0.5,1,0.000204,0.005,0.0,6.279,0.02534,891.0

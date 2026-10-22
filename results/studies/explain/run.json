@@ -14,6 +14,6 @@
   "n_malicious_test_days": 38,
   "alert_budget": 0.001,
   "random_state": 42,
-  "elapsed_seconds": 771.1,
-  "run_at": "2026-10-13 15:55:21"
+  "elapsed_seconds": 307.7,
+  "run_at": "2026-10-21 23:44:30"
 }
