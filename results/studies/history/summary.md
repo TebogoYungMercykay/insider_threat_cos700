@@ -1,6 +1,6 @@
 # History length (sub-question 3)
 
-Dataset `dataset.parquet` · seeds [42, 1, 2] · alert budget 0.10% · 719.0s
+Dataset `dataset.parquet` · seeds [42, 1, 2] · alert budget 0.10% · 697.0s
 
 Truncation: each user's most recent N active training days. The test window is unchanged.
 
@@ -24,23 +24,23 @@ Truncation: each user's most recent N active training days. The test window is u
 
 | detector                        | history_days | avg_precision | recall | insider_recall | alert_share_high_privilege | fit_seconds |
 | ------------------------------- | ------------ | ------------- | ------ | -------------- | -------------------------- | ----------- |
-| peruser-ocsvm-personal-zscore   | 3            | 0.0005        | 0.0000 | 0.0000         | 0.0265                     | 0.5560      |
-| peruser-iforest-personal-zscore | 3            | 0.0006        | 0.0000 | 0.0000         | 0.4433                     | 2.9563      |
-| peruser-ocsvm-personal-zscore   | 7            | 0.0010        | 0.0000 | 0.0000         | 0.0157                     | 1.4553      |
-| peruser-iforest-personal-zscore | 7            | 0.0011        | 0.0088 | 0.1667         | 0.2051                     | 3.7797      |
-| peruser-ocsvm-personal-zscore   | 14           | 0.0036        | 0.0175 | 0.3333         | 0.0322                     | 4.0427      |
-| peruser-iforest-personal-zscore | 14           | 0.0014        | 0.0000 | 0.0000         | 0.1216                     | 3.9770      |
-| peruser-ocsvm-personal-zscore   | 30           | 0.0093        | 0.0526 | 0.5000         | 0.0331                     | 4.6307      |
-| peruser-iforest-personal-zscore | 30           | 0.0019        | 0.0614 | 0.3333         | 0.0960                     | 4.2157      |
-| peruser-ocsvm-personal-zscore   | 60           | 0.0223        | 0.3421 | 1.0000         | 0.0397                     | 4.6527      |
-| peruser-iforest-personal-zscore | 60           | 0.0038        | 0.1667 | 0.5000         | 0.0719                     | 4.5023      |
-| peruser-ocsvm-personal-zscore   | 90           | 0.0259        | 0.4386 | 1.0000         | 0.0397                     | 5.2730      |
-| peruser-iforest-personal-zscore | 90           | 0.0028        | 0.0701 | 0.5000         | 0.0653                     | 4.9387      |
-| peruser-ocsvm-personal-zscore   | 120          | 0.0297        | 0.5000 | 1.0000         | 0.0414                     | 5.6533      |
-| peruser-iforest-personal-zscore | 120          | 0.0029        | 0.0877 | 0.5000         | 0.0720                     | 5.4127      |
-| peruser-ocsvm-personal-zscore   | 180          | 0.0345        | 0.5789 | 1.0000         | 0.0339                     | 6.5067      |
-| peruser-iforest-personal-zscore | 180          | 0.0023        | 0.0614 | 0.5000         | 0.0587                     | 6.2563      |
-| peruser-ocsvm-personal-zscore   | all          | 0.0372        | 0.5526 | 1.0000         | 0.0339                     | 7.7247      |
-| peruser-iforest-personal-zscore | all          | 0.0022        | 0.0701 | 0.5000         | 0.0620                     | 7.4057      |
+| peruser-ocsvm-personal-zscore   | 3            | 0.0005        | 0.0000 | 0.0000         | 0.0265                     | 0.5797      |
+| peruser-iforest-personal-zscore | 3            | 0.0006        | 0.0000 | 0.0000         | 0.4433                     | 3.1090      |
+| peruser-ocsvm-personal-zscore   | 7            | 0.0010        | 0.0000 | 0.0000         | 0.0157                     | 1.3910      |
+| peruser-iforest-personal-zscore | 7            | 0.0011        | 0.0088 | 0.1667         | 0.2051                     | 3.6160      |
+| peruser-ocsvm-personal-zscore   | 14           | 0.0036        | 0.0175 | 0.3333         | 0.0322                     | 3.8813      |
+| peruser-iforest-personal-zscore | 14           | 0.0014        | 0.0000 | 0.0000         | 0.1216                     | 3.8570      |
+| peruser-ocsvm-personal-zscore   | 30           | 0.0093        | 0.0526 | 0.5000         | 0.0331                     | 4.1123      |
+| peruser-iforest-personal-zscore | 30           | 0.0019        | 0.0614 | 0.3333         | 0.0960                     | 4.0637      |
+| peruser-ocsvm-personal-zscore   | 60           | 0.0223        | 0.3421 | 1.0000         | 0.0397                     | 4.5063      |
+| peruser-iforest-personal-zscore | 60           | 0.0038        | 0.1667 | 0.5000         | 0.0719                     | 4.4150      |
+| peruser-ocsvm-personal-zscore   | 90           | 0.0259        | 0.4386 | 1.0000         | 0.0397                     | 4.9910      |
+| peruser-iforest-personal-zscore | 90           | 0.0028        | 0.0701 | 0.5000         | 0.0653                     | 5.0477      |
+| peruser-ocsvm-personal-zscore   | 120          | 0.0297        | 0.5000 | 1.0000         | 0.0414                     | 5.4957      |
+| peruser-iforest-personal-zscore | 120          | 0.0029        | 0.0877 | 0.5000         | 0.0720                     | 5.3373      |
+| peruser-ocsvm-personal-zscore   | 180          | 0.0345        | 0.5789 | 1.0000         | 0.0339                     | 6.3387      |
+| peruser-iforest-personal-zscore | 180          | 0.0023        | 0.0614 | 0.5000         | 0.0587                     | 6.1960      |
+| peruser-ocsvm-personal-zscore   | all          | 0.0372        | 0.5526 | 1.0000         | 0.0339                     | 7.4767      |
+| peruser-iforest-personal-zscore | all          | 0.0022        | 0.0701 | 0.5000         | 0.0620                     | 7.3127      |
 
 Role-group reference (needs no personal history): AP 0.0454, recall 0.0789, insider recall 0.50, high-privilege alert share 0.0058.

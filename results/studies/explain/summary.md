@@ -1,6 +1,6 @@
 # Explanation fidelity (sub-question 5)
 
-Dataset `dataset.parquet` · 38 malicious test days · explanations of length 3 over 13 features · 771.1s
+Dataset `dataset.parquet` · 38 malicious test days · explanations of length 3 over 13 features · 307.7s
 
 Ground truth: the features the answer key's malicious events moved on that day, replayed through the dataset's own aggregator. `chance_*` is the analytic rate of a random 3-feature explanation.
 
