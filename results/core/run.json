@@ -67,8 +67,8 @@
       "n_malicious_test_days": 38
     }
   },
-  "elapsed_seconds": 609.5,
-  "run_at": "2026-09-08 16:06:55",
+  "elapsed_seconds": 439.6,
+  "run_at": "2026-10-21 23:04:05",
   "platform": "Linux x86_64, Python 3.14.4",
   "cpu_count": 14
 }

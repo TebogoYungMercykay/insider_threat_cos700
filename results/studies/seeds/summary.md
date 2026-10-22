@@ -1,6 +1,6 @@
 # Seed robustness
 
-Dataset `dataset.parquet` · 10 seeds [42, 1, 2, 3, 4, 5, 6, 7, 8, 9] · alert budget 0.10% · 5763.2s
+Dataset `dataset.parquet` · 10 seeds [42, 1, 2, 3, 4, 5, 6, 7, 8, 9] · alert budget 0.10% · 3785.1s
 
 Every random component is re-drawn per seed: the fit subsample, the forests, SMOTE and the tie-break at the cut. The split and the features are fixed.
 
@@ -8,12 +8,12 @@ Every random component is re-drawn per seed: the fit subsample, the forests, SMO
 
 | detector                        | avg_precision   | recall          | insider_recall  | alert_share_high_privilege | fit_seconds        |
 | ------------------------------- | --------------- | --------------- | --------------- | -------------------------- | ------------------ |
-| peruser-ocsvm-personal-zscore   | 0.0363 ± 0.0011 | 0.5473 ± 0.0111 | 1.0000 ± 0.0000 | 0.0340 ± 0.0020            | 10.3707 ± 5.0398   |
-| peruser-ocsvm-role-zscore       | 0.0473 ± 0.0049 | 0.0789 ± 0.0000 | 0.5000 ± 0.0000 | 0.0052 ± 0.0008            | 9.4949 ± 6.6012    |
-| peruser-iforest-personal-zscore | 0.0029 ± 0.0008 | 0.0763 ± 0.0083 | 0.5000 ± 0.0000 | 0.0742 ± 0.0152            | 8.0146 ± 1.1324    |
-| pop-ocsvm                       | 0.0360 ± 0.0063 | 0.0789 ± 0.0000 | 0.5000 ± 0.0000 | 0.2042 ± 0.0165            | 2.9006 ± 0.5685    |
-| pop-iforest                     | 0.0009 ± 0.0001 | 0.0000 ± 0.0000 | 0.0000 ± 0.0000 | 0.4752 ± 0.0734            | 3.6004 ± 0.4065    |
-| rf                              | 0.0049 ± 0.0027 | 0.1631 ± 0.0461 | 0.5000 ± 0.0000 | 0.2127 ± 0.0249            | 486.3532 ± 99.2178 |
+| peruser-ocsvm-personal-zscore   | 0.0363 ± 0.0011 | 0.5473 ± 0.0111 | 1.0000 ± 0.0000 | 0.0340 ± 0.0020            | 7.8978 ± 0.5252    |
+| peruser-ocsvm-role-zscore       | 0.0473 ± 0.0049 | 0.0789 ± 0.0000 | 0.5000 ± 0.0000 | 0.0052 ± 0.0008            | 6.5826 ± 0.4529    |
+| peruser-iforest-personal-zscore | 0.0029 ± 0.0008 | 0.0763 ± 0.0083 | 0.5000 ± 0.0000 | 0.0742 ± 0.0152            | 7.3598 ± 0.2549    |
+| pop-ocsvm                       | 0.0360 ± 0.0063 | 0.0789 ± 0.0000 | 0.5000 ± 0.0000 | 0.2042 ± 0.0165            | 2.6385 ± 0.1484    |
+| pop-iforest                     | 0.0009 ± 0.0001 | 0.0000 ± 0.0000 | 0.0000 ± 0.0000 | 0.4752 ± 0.0734            | 3.3097 ± 0.2683    |
+| rf                              | 0.0049 ± 0.0027 | 0.1631 ± 0.0461 | 0.5000 ± 0.0000 | 0.2127 ± 0.0249            | 306.1063 ± 21.0532 |
 | volume                          | 0.0284 ± 0.0000 | 0.0526 ± 0.0000 | 0.5000 ± 0.0000 | 0.0397 ± 0.0000            | 0.0000 ± 0.0000    |
 
 ## Paired Wilcoxon signed-rank tests vs `peruser-ocsvm-personal-zscore`

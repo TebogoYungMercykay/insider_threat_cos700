@@ -3,8 +3,6 @@
 **COS700 Research Report**, University of Pretoria, 2026
 Student: Selepe Sello (uXXXXXXXX), Supervisor: Prof. Jan Eloff
 
-> **Work in progress.** This repository is under active development ahead of the final COS700 submission. Results, the report and the documentation may still change.
-
 Implements the framework proposed in _"A Per-User Behavioural Baseline Framework for Insider Threat Detection in Resource-Constrained Environments"_: a lightweight, per-user, role-aware anomaly detection system, evaluated against a population-level Random Forest baseline, on the **CERT Insider Threat Test Dataset schema (r6.2)**.
 
 ---
