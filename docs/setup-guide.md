@@ -15,7 +15,7 @@ This guide covers environment setup, dataset preparation, and running the full p
 
 No internet access is required after the (optional) manual dataset download, training and the dashboard run entirely locally.
 
-The [README](../README.md#hardware) gives the measured peak memory and time of every command, and the default laptop path.
+[Running the Experiments](running-the-experiments.md) gives the measured peak memory and time of every command, and the default laptop path.
 
 ### Python dependencies
 
