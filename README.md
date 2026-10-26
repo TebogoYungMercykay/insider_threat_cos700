@@ -2,7 +2,11 @@
 
 [![Title slide of the project presentation](docs/assets/readme.png)](https://youtu.be/6-U47YhAnAs)
 
-[![Watch the video](https://img.shields.io/badge/▶_Watch_the_video-000000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/6-U47YhAnAs)
+<p align="center">
+  <a href="https://youtu.be/6-U47YhAnAs">
+    <img src="https://img.shields.io/badge/Watch_the_video-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch the video on YouTube">
+  </a>
+</p>
 
 > Judge each employee against their own normal, not the company's. A lightweight insider threat detector that profiles every user from their own history, falls back to their role when the history is short, and scores each day's deviations with one cheap anomaly model, tested on the full CERT r6.2 dataset against the SMOTE-balanced Random Forest of current practice.
 
