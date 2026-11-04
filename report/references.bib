@@ -1,8 +1,8 @@
 % ---------------------------------------------------------------------------
 % Bibliography for the COS700 research report.
 %
-% Every entry here was checked against the publisher, arXiv, or the authors'
-% own pages (October 2026). Several proposal references were corrected:
+% Every entry here was checked against the publisher, arXiv, Crossref or
+% DataCite (October 2026, re-checked 4 November 2026 with DOIs added). Several proposal references were corrected:
 %   * Noever's paper is "Classifier Suites for Insider Threat Detection",
 %     arXiv:1901.10948 (not "Machine learning classifiers and the insider
 %     threat", arXiv:1908.05895).
@@ -22,6 +22,7 @@
   author      = {{IBM Security}},
   title       = {Cost of a Data Breach Report 2024},
   institution = {IBM Corporation},
+  note        = {[Online]. Available: \url{https://www.ibm.com/reports/data-breach}},
   year        = {2024}
 }
 
@@ -29,6 +30,7 @@
   author    = {Dawn M. Cappelli and Andrew P. Moore and Randall F. Trzeciak},
   title     = {The {CERT} Guide to Insider Threats: How to Prevent, Detect, and Respond to Information Technology Crimes},
   publisher = {Addison-Wesley Professional},
+  note      = {ISBN 978-0-321-81257-5},
   year      = {2012}
 }
 
@@ -39,6 +41,7 @@
   volume  = {52},
   number  = {2},
   pages   = {30:1--30:40},
+  note        = {\doi{10.1145/3303771}},
   year    = {2019}
 }
 
@@ -48,13 +51,14 @@
   journal = {Computers \& Security},
   volume  = {104},
   pages   = {102221},
+  note        = {\doi{10.1016/j.cose.2021.102221}},
   year    = {2021}
 }
 
 @misc{Lindauer2020,
   author       = {Brian Lindauer},
   title        = {Insider Threat Test Dataset},
-  howpublished = {Carnegie Mellon University, KiltHub. \url{https://doi.org/10.1184/R1/12841247.v1}},
+  howpublished = {Carnegie Mellon University, KiltHub. \doi{10.1184/R1/12841247.v1}},
   year         = {2020}
 }
 
@@ -63,13 +67,14 @@
   title     = {Bridging the Gap: A Pragmatic Approach to Generating Insider Threat Data},
   booktitle = {IEEE Security and Privacy Workshops (SPW)},
   pages     = {98--104},
+  note        = {\doi{10.1109/SPW.2013.37}},
   year      = {2013}
 }
 
 @misc{Noever2019,
   author       = {David Noever},
   title        = {Classifier Suites for Insider Threat Detection},
-  howpublished = {arXiv preprint arXiv:1901.10948},
+  howpublished = {arXiv preprint \href{https://arxiv.org/abs/1901.10948}{arXiv:1901.10948}},
   year         = {2019}
 }
 
@@ -78,6 +83,7 @@
   title     = {Evaluating Insider Threat Detection Workflow Using Supervised and Unsupervised Learning},
   booktitle = {IEEE Security and Privacy Workshops (SPW)},
   pages     = {270--275},
+  note        = {[Online]. Available: \url{https://ieeexplore.ieee.org/document/8424659}},
   year      = {2018}
 }
 
@@ -88,6 +94,7 @@
   volume  = {17},
   number  = {1},
   pages   = {30--44},
+  note        = {\doi{10.1109/TNSM.2020.2967721}},
   year    = {2020}
 }
 
@@ -96,6 +103,7 @@
   title     = {Deep Learning for Unsupervised Insider Threat Detection in Structured Cybersecurity Data Streams},
   booktitle = {AAAI Workshop on Artificial Intelligence for Cyber Security},
   pages     = {224--231},
+  note        = {\href{https://arxiv.org/abs/1710.00811}{arXiv:1710.00811}},
   year      = {2017}
 }
 
@@ -106,6 +114,7 @@
   series    = {Lecture Notes in Computer Science},
   volume    = {10860},
   publisher = {Springer},
+  note        = {\doi{10.1007/978-3-319-93698-7_4}},
   year      = {2018}
 }
 
@@ -114,14 +123,16 @@
   title     = {Digital Forensic Readiness to Mitigate Insider Threats in the {SaaS} Cloud Environment},
   booktitle = {Proceedings of the 21st International Conference on Cyber Warfare and Security (ICCWS)},
   volume    = {21},
-  note      = {doi:10.34190/iccws.21.1.4508},
+  pages     = {427--438},
+  note      = {\doi{10.34190/iccws.21.1.4508}},
   year      = {2026}
 }
 
 @misc{MSSentinelUEBA,
   author       = {{Microsoft}},
   title        = {Advanced threat detection with User and Entity Behavior Analytics ({UEBA}) in {Microsoft Sentinel}},
-  howpublished = {Microsoft Learn. \url{https://learn.microsoft.com/en-us/azure/sentinel/identify-threats-with-entity-behavior-analytics}. Accessed October 2026},
+  howpublished = {Microsoft Learn},
+  note         = {[Online]. Available: \url{https://learn.microsoft.com/en-us/azure/sentinel/identify-threats-with-entity-behavior-analytics} (accessed October 2026)},
   year         = {2026}
 }
 
@@ -129,6 +140,8 @@
   author    = {Bushra A. Alahmadi and Louise Axon and Ivan Martinovic},
   title     = {99\% False Positives: A Qualitative Study of {SOC} Analysts' Perspectives on Security Alarms},
   booktitle = {31st USENIX Security Symposium},
+  pages     = {2783--2800},
+  note        = {[Online]. Available: \url{https://www.usenix.org/conference/usenixsecurity22/presentation/alahmadi}},
   year      = {2022}
 }
 
@@ -139,6 +152,7 @@
   volume  = {41},
   number  = {3},
   pages   = {15:1--15:58},
+  note        = {\doi{10.1145/1541880.1541882}},
   year    = {2009}
 }
 
@@ -147,6 +161,7 @@
   title     = {Isolation Forest},
   booktitle = {Proceedings of the IEEE International Conference on Data Mining (ICDM)},
   pages     = {413--422},
+  note        = {\doi{10.1109/ICDM.2008.17}},
   year      = {2008}
 }
 
@@ -155,6 +170,7 @@
   title     = {{LOF}: Identifying Density-Based Local Outliers},
   booktitle = {Proceedings of the ACM SIGMOD International Conference on Management of Data},
   pages     = {93--104},
+  note        = {\doi{10.1145/342009.335388}},
   year      = {2000}
 }
 
@@ -165,6 +181,7 @@
   volume  = {13},
   number  = {7},
   pages   = {1443--1471},
+  note        = {\doi{10.1162/089976601750264965}},
   year    = {2001}
 }
 
@@ -175,6 +192,7 @@
   series    = {Lecture Notes in Computer Science},
   volume    = {2454},
   pages     = {170--180},
+  note        = {\doi{10.1007/3-540-46145-0_17}},
   year      = {2002}
 }
 
@@ -185,6 +203,7 @@
   volume  = {1},
   number  = {1},
   pages   = {73--79},
+  note        = {\doi{10.1002/widm.2}},
   year    = {2011}
 }
 
@@ -194,6 +213,7 @@
   journal = {Journal of Artificial Intelligence Research},
   volume  = {16},
   pages   = {321--357},
+  note        = {\doi{10.1613/jair.953}},
   year    = {2002}
 }
 
@@ -204,6 +224,7 @@
   volume  = {10},
   number  = {3},
   pages   = {e0118432},
+  note        = {\doi{10.1371/journal.pone.0118432}},
   year    = {2015}
 }
 
@@ -212,6 +233,7 @@
   title     = {The Relationship Between Precision-Recall and {ROC} Curves},
   booktitle = {Proceedings of the 23rd International Conference on Machine Learning (ICML)},
   pages     = {233--240},
+  note        = {\doi{10.1145/1143844.1143874}},
   year      = {2006}
 }
 
@@ -221,6 +243,7 @@
   booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
   volume    = {30},
   pages     = {4765--4774},
+  note        = {\href{https://arxiv.org/abs/1705.07874}{arXiv:1705.07874}},
   year      = {2017}
 }
 
@@ -231,6 +254,7 @@
   volume  = {2},
   number  = {1},
   pages   = {56--67},
+  note        = {\doi{10.1038/s42256-019-0138-9}},
   year    = {2020}
 }
 
@@ -241,6 +265,7 @@
   volume  = {1},
   number  = {6},
   pages   = {80--83},
+  note        = {\doi{10.2307/3001968}},
   year    = {1945}
 }
 
@@ -251,6 +276,7 @@
   volume  = {6},
   number  = {2},
   pages   = {65--70},
+  note        = {[Online]. Available: \url{https://www.jstor.org/stable/4615733}},
   year    = {1979}
 }
 
@@ -260,6 +286,7 @@
   journal = {Journal of Machine Learning Research},
   volume  = {7},
   pages   = {1--30},
+  note        = {[Online]. Available: \url{https://jmlr.org/papers/v7/demsar06a.html}},
   year    = {2006}
 }
 
@@ -269,5 +296,6 @@
   journal = {Journal of Machine Learning Research},
   volume  = {12},
   pages   = {2825--2830},
+  note        = {[Online]. Available: \url{https://jmlr.org/papers/v12/pedregosa11a.html}},
   year    = {2011}
 }
