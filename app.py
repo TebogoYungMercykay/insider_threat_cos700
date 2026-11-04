@@ -610,8 +610,8 @@ def page_findings() -> None:
         '<div class="info-box">Everything on this page is read from the experiment '
         'outputs in <code>results/</code>, produced on the <b>full 4,000-user dataset</b> '
         '(403,245 test user-days, 38 malicious, 2 insiders) at an alert budget of '
-        '<b>0.1%</b>, 403 alerts over five months. The other pages run on a 400-user '
-        'cohort so they stay interactive.</div>', unsafe_allow_html=True)
+        '<b>0.1%</b>, 403 alerts over five months. The other pages score the same '
+        'full population with the two models trained by train.py.</div>', unsafe_allow_html=True)
 
     core_path = os.path.join(RESULTS_DIR, "core", "comparison.csv")
     if not os.path.exists(core_path):

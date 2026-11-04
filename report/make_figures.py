@@ -146,7 +146,8 @@ def fig_alert_share() -> None:
         ax.text(v + 0.6, yi, f"{v:.1f}%", va="center", fontsize=7.5, color=INK_2)
     ax.axvline(pop_share * 100, color=INK, lw=0.9, zorder=3)
     ax.set_yticks(y)
-    ax.set_yticklabels(df["detector"], fontsize=7.5, family="monospace")
+    ax.set_yticklabels(df["detector"].str.replace("-robust", "-median", regex=False),
+                       fontsize=7.5, family="monospace")
     ax.set_xlabel("Share of the 0.1% alert queue spent on high-privilege users (%)")
     ax.grid(axis="y", visible=False)
     ax.set_xlim(0, max(df["alert_share_high_privilege"]) * 100 + 9)
@@ -228,7 +229,7 @@ def fig_timeline() -> None:
                Line2D([], [], color=INK, lw=0.9),
                Patch(color=ORANGE, alpha=0.3)]
     labels = ["Framework: deviation from own history",
-              "Same OCSVM on population-scaled features",
+              "Same OCSVM with a population reference",
               "Alert line (0.1% budget)", "Labelled malicious day"]
     fig.legend(handles, labels, loc="upper center", ncol=2, fontsize=7.5,
                bbox_to_anchor=(0.5, 1.07))
@@ -333,7 +334,7 @@ def fig_explain() -> None:
     names = {"personal z": "Framework (own history)", "role z": "Role group z-score",
              "population z": "Population z-score",
              "RF SHAP (positive only)": "RF SHAP, positive only",
-             "RF SHAP": "RF SHAP, by $|\\phi|$"}
+             "RF SHAP": "RF SHAP, by absolute value"}
     order = [e for e in names if e in set(s["explainer"])][::-1]
     s = s.set_index("explainer").loc[order]
     fig, axes = plt.subplots(1, 2, figsize=(6.0, 2.5), sharey=True)

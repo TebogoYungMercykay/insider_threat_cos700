@@ -8,3 +8,7 @@
 *.synctex.gz
 *.synctex(busy)
 build.log
+
+# Submission copy (built with the student name in the file name) stays out of the repository.
+Selepe Sello - COS700 Report.*
+final-build.log
