@@ -157,7 +157,7 @@ def fig_alert_share() -> None:
                        Patch(color=ORANGE, label="Population detectors"),
                        Patch(color=MUTED, label="Floors"),
                        Line2D([], [], color=INK, lw=0.9,
-                              label=f"High-privilege share of users ({pop_share * 100:.2f}%)")],
+                              label=f"High-privilege share of test user-days ({pop_share * 100:.2f}%)")],
               loc="lower right")
     _save(fig, "alert_share")
 
@@ -333,8 +333,8 @@ def fig_explain() -> None:
     s = s[(s["view"] == "all malicious test days") & (s["insider"] == "all")]
     names = {"personal z": "Framework (own history)", "role z": "Role group z-score",
              "population z": "Population z-score",
-             "RF SHAP (positive only)": "RF SHAP, positive only",
-             "RF SHAP": "RF SHAP, by absolute value"}
+             "RF SHAP (positive only)": "Random Forest SHAP, positive only",
+             "RF SHAP": "Random Forest SHAP, by absolute value"}
     order = [e for e in names if e in set(s["explainer"])][::-1]
     s = s.set_index("explainer").loc[order]
     fig, axes = plt.subplots(1, 2, figsize=(6.0, 2.5), sharey=True)
