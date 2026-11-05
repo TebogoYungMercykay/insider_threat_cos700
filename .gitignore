@@ -19,3 +19,7 @@ report/declaration.pdf
 .streamlit/*
 !.streamlit/config.toml
 .DS_Store
+
+materials/
+/materials/
+/materials
